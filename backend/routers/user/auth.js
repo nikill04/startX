@@ -6,13 +6,13 @@ const multer = require('multer')
 var nodemailer = require('nodemailer');
 const path = require('path');
 const axios = require('axios')
-const senderemail = "hexart637@gmail.com";
+const senderemail = process.env.EMAIL_USER;
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: senderemail,
-        pass: 'zetk dsdm imvx keoa'
+        pass: process.env.EMAIL_PASS
     }
 });
 async function getUserInfo(accessToken) {

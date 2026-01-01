@@ -12,12 +12,12 @@ const auth = new google.auth.GoogleAuth({
     'https://www.googleapis.com/auth/spreadsheets', // Full access to edit sheets
   ],});
 
-const senderemail = "hexart637@gmail.com";
+const senderemail = process.env.EMAIL_USER;
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: senderemail,
-        pass: 'zetk dsdm imvx keoa'
+        pass: process.env.EMAIL_PASS
     }
 });
 async function getSheetId(spreadsheetId, sheetName) {

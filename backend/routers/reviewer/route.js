@@ -2,14 +2,14 @@ const express = require('express');
 const Reviewer = require('../../models/reviewers');
 const router = express.Router();
 const nodemailer= require('nodemailer')
-const senderemail = "hexart637@gmail.com";
+const senderemail = process.env.EMAIL_USER;
 const EIR = require('../../models/EirSchema')
 const GrantRequests = require('../../models/GrandSchemeSchema')
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: senderemail,
-        pass: 'zetk dsdm imvx keoa'
+        pass: process.env.EMAIL_PASS
     }
 });
 

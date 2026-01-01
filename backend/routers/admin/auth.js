@@ -6,14 +6,15 @@ const GrantScheme = require('../../models/GrandSchemeSchema');
 const Messages = require('../../models/adminmessages')
 const Reviewer = require('../../models/reviewers');
 var nodemailer = require('nodemailer');
+require('dotenv').config();
 
 
-const senderemail = "hexart637@gmail.com";
+const senderemail = process.env.EMAIL_USER;
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: senderemail,
-        pass: 'zetk dsdm imvx keoa'
+        pass: process.env.EMAIL_PASS
     }
 });
 
