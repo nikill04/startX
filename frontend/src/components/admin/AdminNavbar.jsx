@@ -11,8 +11,7 @@ const navItems = [
   { name: 'EIR Requests', icon: Users },
   { name: 'Grants Requests', icon: FileText },
   { name: 'Reviewers', icon: User },  // Added 'User' icon for Reviewers
-  { name: 'Messages', icon: Mail },
-  { name: 'Ads', icon: Megaphone }, 
+  { name: 'Messages', icon: Mail }, 
   { name: 'Logout', icon: LogOut }, 
 ];
 

@@ -1,0 +1,32 @@
+Based on my analysis, the data.json file contains sample advertisement request data that matches the structure of Google Forms submissions used in your project. Here's what it represents:
+
+What is data.json?
+The data.json file contains a single advertisement request entry with these fields:
+
+Timestamp: When the request was submitted
+Your Name: Contact person's name
+Email: Contact email
+Phone: Contact phone number
+Ad name: Name of the advertisement/company
+Ad Description: Description of the advertisement
+Amount Willing To Pay: Budget/payment amount
+Image: Google Drive link to advertisement image
+Company Link: Website/company URL
+Why does it exist?
+This file appears to be sample/test data that mirrors the structure of Google Forms submissions. Your application integrates with Google Sheets for advertisement requests:
+
+Google Forms → Google Sheets → Your Backend
+
+Users submit advertisement requests via Google Forms
+Data gets stored in Google Sheet: "Form Responses 1"
+Your backend reads from this sheet using the spreadsheet ID: 1DqAAnv_zjCBraWIzj85lOY_72HxR02OQG-Eb46cPfZU
+Field Mapping: The data.json fields directly correspond to what your code expects:
+
+const newAd = new Advertisement({
+  name: request['Your Name'],           // Maps to data.json "Your Name"
+  email: request.Email,                 // Maps to data.json "Email"  
+  phone: request['Phone '],             // Maps to data.json "Phone "
+  description: request['Ad Description'], // Maps to data.json "Ad Description"
+  adverCompanyName: request['Ad name'], // Maps to data.json "Ad name"
+  // etc.
+});

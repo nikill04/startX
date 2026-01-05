@@ -114,33 +114,6 @@ export default function StartupDetails({ kyc, progress }) {
         </div>
       </motion.div>
 
-      {/* Ads Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.5 }}
-        className="bg-white rounded-lg shadow-lg overflow-hidden p-4 md:p-5"
-      >
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">Sponsored Ads</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => handleAdClick(ad._id, ad.companyLink)}
-              className="relative cursor-pointer aspect-video rounded-lg overflow-hidden shadow-md transition-transform duration-300 hover:shadow-lg"
-            >
-              <img
-                src={`http://localhost:4000/uploads/ads/${ad.AdImgUrl}`}
-                className="object-cover w-full h-full"
-                alt={ad.adverCompanyName}
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-50 p-2 text-white text-sm text-center">
-                {ad.description}
-              </div>
-            </motion.div>
-        </div>
-      </motion.div>
     </div>
   )
 }

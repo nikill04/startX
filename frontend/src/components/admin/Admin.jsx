@@ -8,10 +8,9 @@ import AdminNavbar from './AdminNavbar';
 import EIRRequests from './EirRequests';
 import GrantApplicationComponent from './GrantRequests';
 import StartupMessages from './Messages';
-import AdsComponent from './Ads';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Reviewrs from './Reviewrs';
+import Reviewers from './Reviewers';
 
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState('startups');
@@ -139,9 +138,8 @@ export default function Admin() {
 
         {selectedTab === 'eirrequests' && <EIRRequests eirRequests={eirRequests} />}
         {selectedTab === 'grantsrequests' && <GrantApplicationComponent grantSchemes={grantRequests} />}
-        {selectedTab === 'reviewers' && <Reviewrs />}
+        {selectedTab === 'reviewers' && <Reviewers />}
         {selectedTab === 'messages' && <StartupMessages />}
-        {selectedTab === 'ads' && <AdsComponent />}
       </div>
     </div>
   );
