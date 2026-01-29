@@ -17,83 +17,85 @@ export default function StartupMessages() {
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    const fetchStartups = async () => {
-      try {
-        const response = await axios.get('/admin/startups')
-        setStartups(response.data)
-      } catch (error) {
-        console.error('Error fetching startups:', error)
+      const fetchStartups = async () => {
+          try {
+              const response = await axios.get('/admin/startups')
+              setStartups(response.data)
+          } catch (error) {
+              console.error('Error fetching startups:', error)
+          }
       }
-    }
 
-    fetchStartups()
+      fetchStartups()
 
-    socket.on('receiveMessage', (messageData) => {
-      console.log("Message received: ", messageData)
-      setMessages((prevMessages) => (prevMessages ? [...prevMessages, messageData] : [messageData]))
-      setUnreadMessages((prev) => ({
-        ...prev,
-        [messageData.roomId]: (prev[messageData.roomId] || 0) + 1
-      }))
-    })
+      socket.on('receiveMessage', (messageData) => {
+          console.log("Message received: ", messageData)
+          
+          setMessages((prevMessages) => (prevMessages ? [...prevMessages, messageData] : [messageData]))
 
-    socket.on('connect', () => {
-      console.log('Connected to the server with ID:', socket.id)
-    })
+          setUnreadMessages((prev) => ({
+              ...prev,
+              [messageData.roomId]: (prev[messageData.roomId] || 0) + 1
+          }))
+      })
 
-    return () => {
-      socket.off('receiveMessage')
-      socket.off('connect')
-    }
+      socket.on('connect', () => {
+          console.log('Connected to the server with ID:', socket.id)
+      })
+
+      return () => {
+          socket.off('receiveMessage')
+          socket.off('connect')
+      }
   }, [])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const handleStartupClick = async (startupId) => {
-    setSelectedStartup(startupId)
-    socket.emit('joinRoom', startupId)
-    
-    try {
-      const response = await axios.get(`/admin/messages/${startupId}`)
-      setMessages(response.data.messsages || [])
-      setUnreadMessages((prev) => ({ ...prev, [startupId]: 0 }))
-    } catch (error) {
-      console.error('Error fetching messages:', error)
-    }
+      setSelectedStartup(startupId)
+      socket.emit('joinRoom', startupId)
+      
+      try {
+          const response = await axios.get(`/admin/messages/${startupId}`)
+          setMessages(response.data.messsages || [])
+          setUnreadMessages((prev) => ({ ...prev, [startupId]: 0 }))
+      } catch (error) {
+          console.error('Error fetching messages:', error)
+      }
   }
 
   const handleBackToStartups = () => {
-    setSelectedStartup(null)
+      setSelectedStartup(null)
   }
 
   const handleSendMessage = () => {
-    if (inputMessage.trim() === '') return
-    const newMessage = {
-      message: inputMessage,
-      sender: 'admin',
-      roomId: selectedStartup,
-    }
-    socket.emit('sendMessage', {
-      roomId: selectedStartup,
-      messageData: newMessage,
-    })
-    // setMessages((prevMessages) => [...prevMessages, newMessage])
-    setInputMessage('')
+      if (inputMessage.trim() === '') return
+      const newMessage = {
+          message: inputMessage,
+          sender: 'admin',
+          roomId: selectedStartup,
+      }
+      socket.emit('sendMessage', {
+          roomId: selectedStartup,
+          messageData: newMessage,
+      })
+      // setMessages((prevMessages) => [...prevMessages, newMessage])
+      setInputMessage('')
   }
 
   const handleBroadcastMessage = () => {
-    if (inputMessage.trim() === '') return
-    console.log("broadcasting message", inputMessage)
-    const newMessage = {
-      message: inputMessage,
-      sender: 'admin',
-    }
-    socket.emit('BroadcastMessage', {
-      messageData: newMessage,
-    })
-    setInputMessage('')
+      if (inputMessage.trim() === '') return
+      console.log("broadcasting message", inputMessage)
+      const newMessage = {
+          message: inputMessage,
+          sender: 'admin',
+      }
+      socket.emit('BroadcastMessage', {
+          messageData: newMessage,
+      })
+      setInputMessage('')
   }
 
   return (

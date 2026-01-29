@@ -22,7 +22,8 @@ const EIRRequests = ({ eirRequests }) => {
   };
 
   useEffect(() => {
-    setUpdatedRequests(eirRequests.reverse());
+    // ✅ FIX: Create a copy with [...], then reverse
+    setUpdatedRequests([...eirRequests].reverse());
   }, [eirRequests]);
 
   useEffect(() => {

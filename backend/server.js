@@ -9,7 +9,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const messageModel = require('./models/adminmessages')
 const startupModel = require("./models/startupmodel")
-const Messages = require('./models/adminmessages')
+// const Messages = require('./models/adminmessages')
 dotenv.config();
 const path = require('path')
 // Connect to MongoDB
@@ -60,11 +60,12 @@ io.on('connection', (socket) => {
             console.error('Error sending message:', error);
         }
         
-                try {
+        try {
             // Find or create the message document for the specific startup
             const existingMessages = await messageModel.findOne({ startup_id: roomId });
+            
             if (existingMessages) {
-               console.log(existingMessages.startup_id, );
+                console.log(existingMessages.startup_id, );
                 // If messages already exist, push the new message to the messages array
                 existingMessages.messsages[existingMessages.messsages.length]={
                     message: messageData.message,
