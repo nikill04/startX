@@ -32,19 +32,19 @@ export default function EnhancedStartupProgress() {
   
   // Fetch data from the API on component mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`/get/progress/${startup}`); // Use the appropriate startup ID here
-        const result = await response.json();
-        console.log(result); // Log the result for debugging
-        setData(result); // Set the fetched data into state
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setData([]); // Reset data on error
-      }
-    };
+      const fetchData = async () => {
+          try {                            
+              const response = await fetch(`/get/progress/${startup}`); // Use the appropriate startup ID here
+              const result = await response.json();
+              console.log(result); // Log the result for debugging
+              setData(result); // Set the fetched data into state
+          } catch (error) {      
+              console.error('Error fetching data:', error);
+              setData([]); // Reset data on error
+          }   
+      };
 
-    fetchData();
+      fetchData();
   }, [startup]); // Added startup as a dependency
 
   // Calculate total revenue, expenses, and profit/loss
