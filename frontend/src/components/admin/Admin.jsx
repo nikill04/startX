@@ -1,20 +1,29 @@
+// Admin dashboard (/admin). The sidebar decides which tab is shown.
 import Cookie from 'js-cookie';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { ChevronDown, ChevronUp, Home, Users, FileText, User, Mail, Download } from 'lucide-react';
 import { setStartups, setEirRequests, setGrantRequests, setVisibleDetails } from '../../redux/adminSlice';
-import AdminNavbar from './AdminNavbar';
+import Sidebar from '../Sidebar';
 import EIRRequests from './EirRequests';
 import GrantApplicationComponent from './GrantRequests';
 import StartupMessages from './Messages';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import Reviewers from './Reviewers';
+import api from '../../api';
+
+const tabs = [
+  { id: 'startups', name: 'Startups', icon: Home },
+  { id: 'eirrequests', name: 'EIR Requests', icon: Users },
+  { id: 'grantsrequests', name: 'Grants Requests', icon: FileText },
+  { id: 'reviewers', name: 'Reviewers', icon: User },
+  { id: 'messages', name: 'Messages', icon: Mail },
+];
 
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState('startups');
-  const [isExpanded, setIsExpanded] = useState(true);
+  const isLoggedIn = Boolean(Cookie.get('admin'));
 
   const startups = useSelector((state) => state.admin.startups);
   const eirRequests = useSelector((state) => state.admin.eirRequests);
@@ -24,47 +33,66 @@ export default function Admin() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetch('admin/startups')
-      .then((response) => response.json())
-      .then((data) => dispatch(setStartups(data)))
-      .catch((error) => console.error('Error fetching startups:', error));
-  }, [dispatch]);
-
-  useEffect(() => {
-    fetch('admin/eir-requests')
-      .then((response) => response.json())
-      .then((data) => dispatch(setEirRequests(data)))
-      .catch((error) => console.error('Error fetching EIR requests:', error));
-  }, [dispatch]);
-
-  useEffect(() => {
-    fetch('admin/grant-requests')
-      .then((response) => response.json())
-      .then((data) => dispatch(setGrantRequests(data.reverse())))
-      .catch((error) => console.error('Error fetching grant requests:', error));
-  }, [dispatch]);
-
-  useEffect(() => {
-    const admin = Cookie.get('admin');
-    if (!admin) {
-      navigate('/admin/login');
+  // Loads all data shown on the dashboard. Tabs call it again after they change something.
+  const reload = useCallback(async () => {
+    try {
+      const [startupsRes, eirRes, grantRes] = await Promise.all([
+        api.get('/admin/startups'),
+        api.get('/admin/eir-requests'),
+        api.get('/admin/grant-requests'),
+      ]);
+      dispatch(setStartups(startupsRes.data));
+      dispatch(setEirRequests([...eirRes.data].reverse()));     // newest first
+      dispatch(setGrantRequests([...grantRes.data].reverse())); // newest first
+    } catch (error) {
+      console.error('Error loading admin data:', error);
     }
-  }, [navigate]);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/admin/login');
+      return;
+    }
+    reload();
+  }, [isLoggedIn, navigate, reload]);
+
+  const handleLogout = () => {
+    Cookie.remove('admin');
+    navigate('/');
+  };
 
   const toggleDetails = (startupId) => {
     dispatch(setVisibleDetails(startupId));
   };
 
-  return (
-    <div className="flex h-screen bg-gray-100">
-      <AdminNavbar selectedTab={selectedTab} setSelectedTab={setSelectedTab} isExpanded={isExpanded} setIsExpanded={setIsExpanded} />
+  if (!isLoggedIn) return null;
 
-      <div className="flex-1 p-8 overflow-auto">
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <Sidebar
+        title="Admin Dashboard"
+        items={tabs}
+        selectedTab={selectedTab}
+        onSelect={setSelectedTab}
+        onLogout={handleLogout}
+        colorClass="bg-gradient-to-b from-purple-700 via-purple-600 to-indigo-700"
+      />
+
+      <div className="flex-1 min-w-0 p-4 md:p-8 overflow-auto">
         {selectedTab === 'startups' && (
           <div>
-            <h2 className="text-3xl font-bold mb-6 text-purple-800">Startups</h2>
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <h2 className="text-3xl font-bold text-purple-800">Startups</h2>
+              <Link
+                to="/admin/report"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                <Download size={16} /> Download PDF Report
+              </Link>
+            </div>
+            {startups.length === 0 && <p className="text-gray-600 mb-4">No startups have registered yet.</p>}
+            <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
@@ -80,7 +108,7 @@ export default function Admin() {
                       <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4">{startup.kyc?.company_name || 'N/A'}</td>
                         <td className="py-3 px-4">{startup.kyc?.company_details?.industry || 'N/A'}</td>
-                        <td className="py-3 px-4">{startup.kyc.created_at ? new Date(startup.kyc.created_at).toLocaleDateString() : 'N/A'}</td>
+                        <td className="py-3 px-4">{startup.kyc?.created_at ? new Date(startup.kyc.created_at).toLocaleDateString() : 'N/A'}</td>
                         <td className="py-3 px-4">
                           <motion.button
                             onClick={() => toggleDetails(startup._id)}
@@ -119,8 +147,8 @@ export default function Admin() {
                                   <DetailItem label="Contact Person" value={startup.kyc?.contact_person?.name} />
                                   <DetailItem label="Contact Email" value={startup.kyc?.contact_person?.email} />
                                   <DetailItem label="Contact Phone" value={startup.kyc?.contact_person?.phone} />
-                                  <Link className="font-semibold text-purple-700" to={`/progress/${startup._id}`}>
-                                    Progress
+                                  <Link className="font-semibold text-purple-700 hover:underline" to={`/progress/${startup._id}`}>
+                                    View Progress Charts →
                                   </Link>
                                 </div>
                               </div>
@@ -136,8 +164,8 @@ export default function Admin() {
           </div>
         )}
 
-        {selectedTab === 'eirrequests' && <EIRRequests eirRequests={eirRequests} />}
-        {selectedTab === 'grantsrequests' && <GrantApplicationComponent grantSchemes={grantRequests} />}
+        {selectedTab === 'eirrequests' && <EIRRequests eirRequests={eirRequests} reload={reload} />}
+        {selectedTab === 'grantsrequests' && <GrantApplicationComponent grantSchemes={grantRequests} reload={reload} />}
         {selectedTab === 'reviewers' && <Reviewers />}
         {selectedTab === 'messages' && <StartupMessages />}
       </div>

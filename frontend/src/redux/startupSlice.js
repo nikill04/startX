@@ -1,3 +1,4 @@
+// Data of the logged-in startup, shared by all sections of the startup dashboard
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -5,7 +6,6 @@ const initialState = {
   startupData: null,
   eirData: [],
   grantSchemeData: [],
-  messages: [],
 };
 
 const startupSlice = createSlice({
@@ -24,18 +24,9 @@ const startupSlice = createSlice({
     setGrantSchemeData(state, action) {
       state.grantSchemeData = action.payload;
     },
-    setMessages(state, action) {
-      state.messages = action.payload;
-    },
   },
 });
 
-export const {
-  setUserData,
-  setStartupData,
-  setEirData,
-  setGrantSchemeData,
-  setMessages,
-} = startupSlice.actions;
+export const { setUserData, setStartupData, setEirData, setGrantSchemeData } = startupSlice.actions;
 
 export default startupSlice.reducer;

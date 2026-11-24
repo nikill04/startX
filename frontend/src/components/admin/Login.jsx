@@ -1,9 +1,9 @@
 import React, { useState , useEffect } from 'react';
-import axios from 'axios';
 import Cookies from 'js-cookie';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Container, Paper, Typography, Box, TextField, Button } from '@mui/material'; // Ensure to import Material-UI components
 import image from '../../assets/StartX.png';
+import api, { getErrorMessage } from '../../api';
 
 const AdminLogin = () => {
     const [username, setUsername] = useState('');
@@ -13,31 +13,25 @@ const AdminLogin = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/admin/login', { username, password });
-            console.log(response);
-            if (response.data.message === "Login successful") {
-                Cookies.set('admin', "admin");
-                navigate("/admin");
-            } else {
-                alert('Login failed: ' + response.data.message); // Added error handling
-            }
+            await api.post('/admin/login', { username, password });
+            Cookies.set('admin', 'admin');
+            navigate('/admin');
         } catch (error) {
-            console.error('Error during login:', error); // Log error for debugging
-            alert('Login failed: ' + error.response?.data?.message || 'Unknown error occurred'); // Inform user of error
+            alert('Login failed: ' + getErrorMessage(error));
         }
     };
+    // Already logged in? Go straight to the dashboard.
     useEffect(() => {
-      const admin = Cookies.get("admin");
-      if(admin ) {
-        navigate("/admin");
+      if (Cookies.get('admin')) {
+        navigate('/admin');
       }
-    }, [])
+    }, [navigate]);
     return (
         <Container maxWidth="md" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
             {/* Left side - Login Form */}
             <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: '400px', flex: 1 }}>
                 <Typography variant="h4" component="h1" gutterBottom align="center">
-                    Login
+                    Admin Login
                 </Typography>
 
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
@@ -46,7 +40,7 @@ const AdminLogin = () => {
                         label="Username"
                         fullWidth
                         margin="normal"
-                        type='text '
+                        type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
@@ -69,6 +63,9 @@ const AdminLogin = () => {
                         Login
                     </Button>
                 </Box>
+                <Typography align="center" sx={{ mt: 2 }}>
+                    <Link to="/" style={{ color: '#6200ea' }}>Back to home</Link>
+                </Typography>
             </Paper>
 
             {/* Right side - Image */}

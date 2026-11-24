@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom"; // Use React Router Link for navigation
 import { motion } from "framer-motion";
+import logo from "../../assets/StartX.png";
 
 export default function AnimatedLandingPage() {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0a2e]">
       {/* Header Section */}
@@ -41,18 +40,15 @@ export default function AnimatedLandingPage() {
             </h1>
             <p className="text-lg text-gray-300 mb-6 max-w-md">
               Comprehensive Startup Progress Dashboard: Track Financial Performance, Revenue, and Expenses with Real-Time Charts and Milestone Updates for Strategic Growth Insights.            </p>
-            <motion.button
-              className={`px-6 py-2 text-lg font-semibold rounded-md transition-colors duration-300 ${isHovered
-                  ? "bg-white text-[#0a0a2e]"
-                  : "bg-transparent text-white border-2 border-white"
-                }`}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link to={"/home"} >Get Started</Link>
-            </motion.button>
+            {/* The whole button is the link, so clicking anywhere on it works */}
+            <motion.div className="inline-block" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link
+                to="/home"
+                className="inline-block px-6 py-2 text-lg font-semibold rounded-md border-2 border-white text-white hover:bg-white hover:text-[#0a0a2e] transition-colors duration-300"
+              >
+                Get Started
+              </Link>
+            </motion.div>
           </motion.div>
 
           {/* Animated Video Content */}
@@ -74,16 +70,7 @@ export default function AnimatedLandingPage() {
                 className="absolute inset-0 bg-gradient-to-tr from-pink-500 to-orange-400 rounded-3xl"
               ></motion.div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-3/4 h-3/4 object-cover rounded-2xl"
-                >
-                  <source src="/startx-logo-animation.mp4" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                <img src={logo} alt="StartX logo" className="w-64 h-64 object-cover rounded-full shadow-2xl" />
               </div>
             </div>
           </motion.div>
@@ -120,22 +107,19 @@ export default function AnimatedLandingPage() {
               </ul>
             </div>
             <div className="w-full md:w-1/3">
-              <h3 className="text-lg font-semibold mb-4">Connect With Us</h3>
-              <div className="flex space-x-4">
-                {/* Social Media Links */}
-                <a href="#" className="text-white hover:text-gray-300">
-                  <span className="sr-only">Facebook</span>
-                  {/* Facebook Icon SVG */}
-                </a>
-                <a href="#" className="text-white hover:text-gray-300">
-                  <span className="sr-only">Twitter</span>
-                  {/* Twitter Icon SVG */}
-                </a>
-                <a href="#" className="text-white hover:text-gray-300">
-                  <span className="sr-only">GitHub</span>
-                  {/* GitHub Icon SVG */}
-                </a>
-              </div>
+              <h3 className="text-lg font-semibold mb-4">Other Portals</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/reviewer/login" className="hover:text-gray-300">
+                    Reviewer Login
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/login" className="hover:text-gray-300">
+                    Admin Login
+                  </Link>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

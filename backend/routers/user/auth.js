@@ -1,191 +1,118 @@
+// Routes for startups: register, KYC (company details), login, Google login
 const express = require('express');
+const bcrypt = require('bcrypt');
+const multer = require('multer');
+const axios = require('axios');
 const User = require('../../models/usermodel');
-const Startup = require("../../models/startupmodel")
+const Startup = require('../../models/startupmodel');
+const { sendMail } = require('../../utils/mailer');
+
 const router = express.Router();
-const multer = require('multer')
-var nodemailer = require('nodemailer');
-const path = require('path');
-const axios = require('axios')
-const senderemail = process.env.EMAIL_USER;
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: senderemail,
-        pass: process.env.EMAIL_PASS
-    }
-});
-async function getUserInfo(accessToken) {
-  try {
-      const userRes = await axios.get(
-          `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${accessToken}`
-      );
-      return userRes.data;
-  } catch (error) {
-      console.log(error);
-      throw new Error('Error fetching user info from Google');
-  }
-}
+// Keep the uploaded picture in memory (max 1 MB) so we can save it in the database
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 } });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads/profiles/'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Generate unique file names
-  }
-});
-
-const upload = multer({ storage });
-
-// Registration route
+// POST /auth/register  -> create a login account
 router.post('/register', async (req, res) => {
   const { username, password, email } = req.body;
-  console.log(req.body);
   try {
-    // Check if the email already exists
     const exists = await User.findOne({ email });
     if (exists) {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
-    // Create a new user without password encryption
-    const newUser = new User({
-      username,
-      password, 
-      email
-    });
-    await newUser.save();
-    const mailOptions = {
-        from: senderemail,
-        to: email,
-        subject: 'startX',
-        html: `
-         <h1>Thanks for Registering your startup in our website</h1>
-        `
-    };
-    // Send the verification email
-    transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-            console.log(error);
-        } else {
-            console.log("Mail sent successfully to receiver");
-        }
-    });
-    // Save the user to the database
-    const savedUser = await newUser.save();
-    // Store user ID in session
-    res.status(200).json({ message: 'Registration successful!', userId: savedUser._id });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create({ username, password: hashedPassword, email });
+
+    sendMail(email, 'Welcome to StartX', '<h1>Thanks for registering your startup on StartX</h1>');
+    res.status(200).json({ message: 'Registration successful!', userId: newUser._id });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: 'Failed to register user' , erroris:error });
+    res.status(500).json({ message: 'Failed to register user' });
   }
 });
 
-router.post('/kyc', upload.single('profile_pic') ,  async (req, res) => {
-  console.log(req.body);
-
+// POST /auth/kyc  -> save company details and link them to the user
+router.post('/kyc', (req, res, next) => {
+  // Run the upload first so we can show a friendly message if the picture is too big
+  upload.single('profile_pic')(req, res, (error) => {
+    if (error) return res.status(400).json({ message: 'Profile picture must be smaller than 1 MB' });
+    next();
+  });
+}, async (req, res) => {
   const {
     company_name, address, contact_person_name, contact_person_email,
-    contact_person_phone, incorporation_date, industry, website, user
+    contact_person_phone, incorporation_date, industry, website, user,
   } = req.body;
-  const profilePicPath = req.file ? req.file.filename : "default.png"; // Path to the uploaded profile picture
+
+  // Turn the uploaded picture into text that can be shown directly in an <img src="...">
+  const profilePicture = req.file
+    ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+    : '';
 
   try {
-    // Create the startup (KYC) details
-    const newKYC = new Startup({
+    const startup = await Startup.create({
       kyc: {
         company_name,
         address,
-        contact_person: {
-          name: contact_person_name,
-          email: contact_person_email,
-          phone: contact_person_phone
-        },
-        company_details: {
-          incorporation_date,
-          industry,
-          website
-        },
-        profile_picture:profilePicPath
+        contact_person: { name: contact_person_name, email: contact_person_email, phone: contact_person_phone },
+        company_details: { incorporation_date, industry, website },
+        profile_picture: profilePicture,
       },
       progress: [],
       reports: [],
       messages: [],
       grants: [],
-      
     });
 
-    // Save the KYC details to the database
-    const savedKYC = await newKYC.save();
-
-    // Link the KYC to the logged-in user
-    await User.findByIdAndUpdate(user, { startup: savedKYC._id });
-    res.status(200).json({ message: 'KYC details submitted successfully', startup: savedKYC._id });
+    await User.findByIdAndUpdate(user, { startup: startup._id });
+    res.status(200).json({ message: 'KYC details submitted successfully', startup: startup._id });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: 'Failed to submit KYC details' });
+    res.status(500).json({ message: 'Failed to submit KYC details' });
   }
 });
 
-// Login route
+// POST /auth/login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
   try {
-    // Find user by email
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'User not found' });
-  //  console.log(user.email , user.password , password);
-    if (password !== user.password) {
-      return res.status(400).json({ error: 'Invalid password' });
+    if (!user || !user.password) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password);
+    if (!passwordMatches) {
+      return res.status(400).json({ message: 'Invalid password' });
     }
 
     res.status(200).json({ message: 'Login successful', userId: user._id, startup: user.startup });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to log in' });
+    console.log(error);
+    res.status(500).json({ message: 'Failed to log in' });
   }
 });
 
-router.get('/google', async function (req, res) {
+// GET /auth/google?access_token=...  -> log in (or sign up) with a Google account
+router.get('/google', async (req, res) => {
   try {
-      const { tokens } = req.query;
-      const userInfo = await getUserInfo(tokens.access_token);
-      const { email, name } = userInfo;
+    const googleResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+      params: { alt: 'json', access_token: req.query.access_token },
+    });
+    const { email, name } = googleResponse.data;
 
-      console.log(email, name);
-
-      // Check if the user already exists in the database
-      const userExists = await User.findOne({ email: email });
-      if (userExists) {
-          return res.status(200).send({ message: "Email Already Exists", userId: userExists._id , startup:userExists.startup });
-      }
-
-      // If the user doesn't exist, create a new user
-      const newUser = new User({
-          username: name,
-          email: email,
-          profile_pic: "",
-          company:"",
-          items: []
-      });
-
-      await newUser.save();
-      return res.status(200).send({ message: "Account Created Successfully", userId: newUser._id });
-  } catch (error) {
-      console.error('Error during Google login:', error);
-      return res.status(500).send("An error occurred during Google login.");
-  }
-})
-
-// Logout route
-router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to log out' });
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({ username: name, email });
     }
-    res.status(200).json({ message: 'Logout successful' });
-  });
+
+    // "startup" is empty if this user has not filled the company details (KYC) yet
+    res.status(200).json({ userId: user._id, startup: user.startup });
+  } catch (error) {
+    console.error('Google login failed:', error.message);
+    res.status(500).json({ message: 'Google login failed' });
+  }
 });
 
 module.exports = router;

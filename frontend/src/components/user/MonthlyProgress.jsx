@@ -1,14 +1,13 @@
-'use client'
-
-import axios from 'axios'
+// "Monthly Progress" section: submit a monthly report and see the old ones
 import React, { useState } from 'react'
 import Cookie from 'js-cookie'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
+import api, { getErrorMessage } from '../../api'
 
-const MonthlyProgressReport = ({ progress }) => {
-  const [monthlyData, setMonthlyData] = useState(progress)
+const MonthlyProgressReport = ({ progress, reload }) => {
   const [formVisible, setFormVisible] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [month, setMonth] = useState('')
   const [milestones, setMilestones] = useState('')
   const [issues, setIssues] = useState('')
@@ -18,15 +17,18 @@ const MonthlyProgressReport = ({ progress }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setIsSubmitting(true)
     try {
-      const response = await axios.post(`/submit/reports/${startup}`, { month, milestones, issues, financials })
-      console.log(response)
-      setMonthlyData([...monthlyData, { month, milestones, issues, financials }])
+      // Empty revenue/expenses are saved as 0
+      const numbers = { revenue: Number(financials.revenue) || 0, expenses: Number(financials.expenses) || 0 }
+      await api.post(`/submit/reports/${startup}`, { month, milestones, issues, financials: numbers })
       setFormVisible(false)
       resetForm()
+      reload() // show the new report
     } catch (error) {
-      console.error('Error submitting report:', error)
+      alert(getErrorMessage(error))
     }
+    setIsSubmitting(false)
   }
 
   const resetForm = () => {
@@ -60,10 +62,11 @@ const MonthlyProgressReport = ({ progress }) => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
-                type="text"
+                type="month"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
                 placeholder="Month"
+                title="Month"
                 required
                 className="border border-teal-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
@@ -102,19 +105,21 @@ const MonthlyProgressReport = ({ progress }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="submit"
-              className="mt-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-3 rounded-full font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+              disabled={isSubmitting}
+              className="disabled:opacity-60 mt-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-3 rounded-full font-semibold shadow-md hover:shadow-lg transition-all duration-300"
             >
-              Submit Report
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
             </motion.button>
           </motion.form>
         )}
       </AnimatePresence>
       <h3 className="text-2xl font-semibold mb-4 text-teal-800">Submitted Monthly Reports:</h3>
+      {progress.length === 0 && <p className="text-teal-700">No reports submitted yet.</p>}
       <motion.ul className="space-y-4">
         <AnimatePresence>
-          {monthlyData.map((data, index) => (
+          {progress.map((data, index) => (
             <motion.li
-              key={index}
+              key={data._id || index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -145,13 +150,13 @@ const MonthlyProgressReport = ({ progress }) => {
                       <strong className="text-teal-600">Milestones:</strong> {data.milestones}
                     </p>
                     <p className="mb-2">
-                      <strong className="text-teal-600">Issues:</strong> {data.issues}
+                      <strong className="text-teal-600">Issues:</strong> {data.issues_faced}
                     </p>
                     <p className="mb-2">
-                      <strong className="text-teal-600">Revenue:</strong> ${data.financials.revenue}
+                      <strong className="text-teal-600">Revenue:</strong> ₹{data.financials?.revenue ?? 0}
                     </p>
                     <p>
-                      <strong className="text-teal-600">Expenses:</strong> ${data.financials.expenses}
+                      <strong className="text-teal-600">Expenses:</strong> ₹{data.financials?.expenses ?? 0}
                     </p>
                   </motion.div>
                 )}

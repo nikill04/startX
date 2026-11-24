@@ -1,45 +1,18 @@
-'use client'
-
-import React, { useEffect, useState } from 'react'
+// "Startup Details" section: company info on the left, latest progress reports on the right
+import React from 'react'
 import { motion } from 'framer-motion'
-import axios from 'axios'
-import Cookie from 'js-cookie'
+import { API_URL } from '../../api'
+
+// Profile pictures are stored as "data:image/..." text. Very old ones were files on the server.
+function pictureUrl(picture) {
+  if (!picture || picture === 'default.png') return null
+  if (picture.startsWith('data:')) return picture
+  return `${API_URL}/uploads/profiles/${picture}`
+}
 
 export default function StartupDetails({ kyc, progress }) {
-  const limitedProgress = progress.slice(0, 4)
-  const [ad, setAds] = useState([])
-
-  const startup = Cookie.get('startup')
-  // Fetch ads data
-  async function fetchAd() {
-    try {
-      const response = await axios.get('http://localhost:4000/ads/get/ad')
-      setAds(response.data)
-    } catch (error) {
-      console.error("Error fetching ads:", error)
-    }
-  }
-
-
-  // Handle ad click
-  async function handleAdClick(adId, link) {
-    try {
-      // Send POST request on ad click
-      await axios.post(`http://localhost:4000/ads/click/${adId}` , {startup})
-      window.open(link, '_blank')
-    } catch (error) {
-      console.error("Error handling ad click:", error)
-    }
-  }
-  useEffect(() => {
-    fetchAd()
-    const adInterval = setInterval(() => {
-      fetchAd()
-    }, 5000)
-
-    // Clear interval on component unmount
-    return () => clearInterval(adInterval)
-  }, [])
+  const latestProgress = [...progress].reverse().slice(0, 4) // newest first
+  const picture = pictureUrl(kyc.profile_picture)
 
   return (
     <div className="container mx-auto p-4 space-y-6 bg-gray-50">
@@ -53,32 +26,33 @@ export default function StartupDetails({ kyc, progress }) {
         <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-md overflow-hidden">
           <div className="p-4 md:p-5">
             <div className="flex items-center space-x-3 pb-3">
-              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm">
-                <img 
-                  src={`http://localhost:4000/uploads/profiles/${kyc.profile_picture}`} 
-                  alt={kyc.company_name}
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm bg-teal-500 flex items-center justify-center">
+                {picture ? (
+                  <img src={picture} alt={kyc.company_name} className="w-full h-full object-cover" />
+                ) : (
+                  // No picture: show the first letter of the company name
+                  <span className="text-3xl font-bold text-white">{kyc.company_name?.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div>
                 <h2 className="text-2xl font-semibold text-gray-800">{kyc.company_name}</h2>
-                <p className="text-gray-500 text-sm">{kyc.company_details.industry}</p>
+                <p className="text-gray-500 text-sm">{kyc.company_details?.industry}</p>
               </div>
             </div>
             <div className="space-y-3 text-gray-600 text-sm">
               <p><strong>Address:</strong> {kyc.address}</p>
-              <p><strong>Contact Person:</strong> {kyc.contact_person.name}</p>
-              <p><strong>Email:</strong> {kyc.contact_person.email}</p>
-              <p><strong>Phone:</strong> {kyc.contact_person.phone}</p>
+              <p><strong>Contact Person:</strong> {kyc.contact_person?.name}</p>
+              <p><strong>Email:</strong> {kyc.contact_person?.email}</p>
+              <p><strong>Phone:</strong> {kyc.contact_person?.phone}</p>
               <p>
                 <strong>Website:</strong>{" "}
-                <a 
-                  href={kyc.company_details.website} 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href={kyc.company_details?.website}
+                  target="_blank"
+                  rel="noreferrer"
                   className="text-teal-500 hover:text-teal-700 transition-colors duration-300"
                 >
-                  {kyc.company_details.website}
+                  {kyc.company_details?.website}
                 </a>
               </p>
             </div>
@@ -89,10 +63,13 @@ export default function StartupDetails({ kyc, progress }) {
         <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-md overflow-hidden">
           <div className="p-4 md:p-5">
             <h3 className="text-xl font-semibold mb-3 text-gray-800">Latest Progress</h3>
+            {latestProgress.length === 0 && (
+              <p className="text-gray-600 text-sm">No reports yet. Add one from "Monthly Progress".</p>
+            )}
             <div className="space-y-3 max-h-72 overflow-y-auto">
-              {limitedProgress.map((monthData, index) => (
+              {latestProgress.map((monthData, index) => (
                 <motion.div
-                  key={index}
+                  key={monthData._id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * index, duration: 0.5 }}
@@ -103,8 +80,8 @@ export default function StartupDetails({ kyc, progress }) {
                     <p><strong>Milestone:</strong> {monthData.milestones}</p>
                     <p><strong>Issues:</strong> {monthData.issues_faced}</p>
                     <div className="flex justify-between">
-                      <p><strong>Revenue:</strong> ${monthData.financials.revenue}</p>
-                      <p><strong>Expenses:</strong> ${monthData.financials.expenses}</p>
+                      <p><strong>Revenue:</strong> ₹{monthData.financials?.revenue ?? 0}</p>
+                      <p><strong>Expenses:</strong> ₹{monthData.financials?.expenses ?? 0}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -113,7 +90,6 @@ export default function StartupDetails({ kyc, progress }) {
           </div>
         </div>
       </motion.div>
-
     </div>
   )
 }

@@ -1,180 +1,149 @@
+// Routes for reviewers (people who rate EIR and grant applications)
 const express = require('express');
+const bcrypt = require('bcrypt');
 const Reviewer = require('../../models/reviewers');
+const EIR = require('../../models/EirSchema');
+const GrantScheme = require('../../models/GrandSchemeSchema');
+const { sendMail } = require('../../utils/mailer');
+
 const router = express.Router();
-const nodemailer= require('nodemailer')
-const senderemail = process.env.EMAIL_USER;
-const EIR = require('../../models/EirSchema')
-const GrantRequests = require('../../models/GrandSchemeSchema')
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: senderemail,
-        pass: process.env.EMAIL_PASS
-    }
-});
 
+// Creates a reviewer (used by both "register" and the admin's "add reviewer")
+async function createReviewer({ name, email, password, organization, about }) {
+  const exists = await Reviewer.findOne({ email });
+  if (exists) return null;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const reviewer = await Reviewer.create({ name, email, password: hashedPassword, organization, about });
+  sendMail(email, 'StartX reviewer account', '<h1>You are registered as a reviewer on StartX</h1>');
+  return reviewer;
+}
+
+// POST /review/register  -> a reviewer signs up
 router.post('/register', async (req, res) => {
-    const { name, password, email , organization , about } = req.body;
-    console.log(req.body);
-    try {
-      // Check if the email already exists
-      const exists = await Reviewer.findOne({ email });
-      if (exists) {
-        return res.status(400).json({ message: 'Email already exists' });
-      }
-      // Create a new reviewer without password encryption
-      const newReviewer = new Reviewer({
-        name,
-        password, // store the plain text password directly
-        email,
-        organization,
-        about
-      });
-      await newReviewer.save();
-      const mailOptions = {
-          from: senderemail,
-          to: email,
-          subject: 'startX',
-          html: `
-           <h1>You are registered as a reviewer on startx</h1>
-          `
-      };
-      // Send the verification email
-      transporter.sendMail(mailOptions, function (error, info) {
-          if (error) {
-              console.log(error);
-          } else {
-              console.log("Mail sent successfully to receiver");
-          }
-      });
-      // Save the reviewer to the database
-      const savedUser = await newReviewer.save();
-      // Store reviewer ID in session
-      res.status(200).json({ message: 'Registration successful!', reviewerId: savedUser._id });
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({ error: 'Failed to register reviewer' , erroris:error });
+  try {
+    const reviewer = await createReviewer(req.body);
+    if (!reviewer) {
+      return res.status(400).json({ message: 'Email already exists' });
     }
-  });
-  router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-      // Find reviewer by email
-      const reviewer = await Reviewer.findOne({ email });
-      if (!reviewer) return res.status(400).json({ error: 'Reviewer not found' });
-     console.log(reviewer.email , reviewer.password , password);
-      // Directly compare passwords without encryption
-      if (password !== reviewer.password) {
-        return res.status(400).json({ message: 'Invalid password' });
-      }
-      res.status(200).json({ message: 'Login successful', reviewerId: reviewer._id });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to log in' });
-    }
-  });
+    res.status(200).json({ message: 'Registration successful!', reviewerId: reviewer._id });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: 'Failed to register reviewer' });
+  }
+});
 
-// Add a reviewer
+// POST /review/login
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const reviewer = await Reviewer.findOne({ email });
+    if (!reviewer) {
+      return res.status(400).json({ message: 'Reviewer not found' });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, reviewer.password);
+    if (!passwordMatches) {
+      return res.status(400).json({ message: 'Invalid password' });
+    }
+
+    res.status(200).json({ message: 'Login successful', reviewerId: reviewer._id });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to log in' });
+  }
+});
+
+// POST /review/add-reviewer  -> the admin adds a reviewer
 router.post('/add-reviewer', async (req, res) => {
-    try {
-        const newReviewer = new Reviewer(req.body);
-        await newReviewer.save();
-        res.status(201).json(newReviewer);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
+  try {
+    const reviewer = await createReviewer(req.body);
+    if (!reviewer) {
+      return res.status(400).json({ message: 'Email already exists' });
     }
+    const { password, ...reviewerWithoutPassword } = reviewer.toObject();
+    res.status(201).json(reviewerWithoutPassword);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to add reviewer' });
+  }
 });
 
-// Get all reviewers
+// GET /review/reviewers  -> all reviewers (without their passwords)
 router.get('/reviewers', async (req, res) => {
-    try {
-        const reviewers = await Reviewer.find();
-        res.status(200).json(reviewers);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+  try {
+    const reviewers = await Reviewer.find().select('-password');
+    res.status(200).json(reviewers);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch reviewers' });
+  }
 });
 
-// Get all reviews for a specific reviewer
+// GET /review/:reviewerId/reviews  -> EIR applications assigned to this reviewer
 router.get('/:reviewerId/reviews', async (req, res) => {
   try {
-    const reviewer = await Reviewer.findById(req.params.reviewerId);
-    if (!reviewer) {
-      return res.status(404).json({ message: 'Reviewer not found' });
-    }
-    // Populate review details from EIR documents
-    const reviews = await EIR.find({
-      'reviews.reviewer_id': req.params.reviewerId
-    });
-    res.status(200).json(reviews);
+    const applications = await EIR.find({ 'reviews.reviewer_id': req.params.reviewerId });
+    res.status(200).json(applications);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'An error occurred while fetching reviews', error: error.message });
-  }
-});
-router.get('/:reviewerId/grantreviews', async (req, res) => {
-  try {
-    const reviewer = await Reviewer.findById(req.params.reviewerId);
-    if (!reviewer) {
-      return res.status(404).json({ message: 'Reviewer not found' });
-    }
-    // Populate review details from EIR documents
-    const reviews = await GrantRequests.find({
-      'reviews.reviewer_id': req.params.reviewerId
-    });
-    res.status(200).json(reviews);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'An error occurred while fetching reviews', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch EIR applications' });
   }
 });
 
-router.post('/eir/:eir/:reviewer' , async (req, res) => {
+// GET /review/:reviewerId/grantreviews  -> grant applications assigned to this reviewer
+router.get('/:reviewerId/grantreviews', async (req, res) => {
   try {
-    EIR.findById(req.params.eir).then((eir) => {
-      if (!eir) {
-        return res.status(404).json({ message: 'EIR not found' });
-      }
-      // Add new review to the EIR document
-      eir.reviews.forEach((review) => {
-        if (review.reviewer_id === req.params.reviewer) {
-          review.rating = req.body.rating;
-          review.comments.push(req.body.comment);
-          review.status="completed"
-        }
-      })
-      eir.save().then((savedEir) => {
-        res.status(200).json(savedEir);
-      })
-      
-    })
+    const applications = await GrantScheme.find({ 'reviews.reviewer_id': req.params.reviewerId });
+    res.status(200).json(applications);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch grant applications' });
+  }
+});
+
+// Saves a reviewer's rating + comment on an application (EIR or grant)
+async function saveReview(application, reviewerId, rating, comment) {
+  const review = application.reviews.find((r) => r.reviewer_id === reviewerId);
+  if (!review) return false;
+
+  review.rating = rating;
+  if (comment) review.comments.push(comment);
+  review.status = 'completed';
+  review.review_date = new Date();
+  await application.save();
+  return true;
+}
+
+// POST /review/eir/:eirId/:reviewerId  body: { rating, comment }
+router.post('/eir/:eirId/:reviewerId', async (req, res) => {
+  try {
+    const eir = await EIR.findById(req.params.eirId);
+    if (!eir) {
+      return res.status(404).json({ message: 'EIR application not found' });
+    }
+    const saved = await saveReview(eir, req.params.reviewerId, req.body.rating, req.body.comment);
+    if (!saved) {
+      return res.status(403).json({ message: 'You are not a reviewer of this application' });
+    }
+    res.status(200).json(eir);
   } catch (error) {
     console.log(error);
-    res.status(500).json({ message: 'An error occurred while'})
+    res.status(500).json({ message: 'Failed to submit review' });
   }
-})
-router.post('/grants/:grant/:reviewer' , async (req, res) => {
+});
+
+// POST /review/grants/:grantId/:reviewerId  body: { rating, comment }
+router.post('/grants/:grantId/:reviewerId', async (req, res) => {
   try {
-    GrantRequests.findById(req.params.grant).then((grant) => {
-      if (!grant) {
-        return res.status(404).json({ message: 'EIR not found' });
-      }
-      // Add new review to the EIR document
-      grant.reviews.forEach((review) => {
-        if (review.reviewer_id === req.params.reviewer) {
-          review.rating = req.body.rating;
-          review.comments.push(req.body.comment);
-          review.status="completed"
-        }
-      })
-      grant.save().then((savedEir) => {
-        res.status(200).json(savedEir);
-      })
-      
-    })
+    const grant = await GrantScheme.findById(req.params.grantId);
+    if (!grant) {
+      return res.status(404).json({ message: 'Grant application not found' });
+    }
+    const saved = await saveReview(grant, req.params.reviewerId, req.body.rating, req.body.comment);
+    if (!saved) {
+      return res.status(403).json({ message: 'You are not a reviewer of this application' });
+    }
+    res.status(200).json(grant);
   } catch (error) {
     console.log(error);
-    res.status(500).json({ message: 'An error occurred while'})
+    res.status(500).json({ message: 'Failed to submit review' });
   }
-})
+});
 
 module.exports = router;

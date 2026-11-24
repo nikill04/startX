@@ -1,152 +1,92 @@
+// Entry point of the backend. Run it with:  npm start   (or: node server.js)
+require('dotenv').config(); // loads variables from the .env file into process.env
+
+const path = require('path');
+const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
-const app = express();
-const { Server } = require('socket.io')
-const http = require('http')
-const server = http.createServer(app);
-const port = 4000;
 const cors = require('cors');
-const dotenv = require('dotenv');
-const messageModel = require('./models/adminmessages')
-const startupModel = require("./models/startupmodel")
-// const Messages = require('./models/adminmessages')
-dotenv.config();
-const path = require('path')
-// Connect to MongoDB
-mongoose.connect("mongodb://127.0.0.1:27017/startX", { useNewUrlParser: true, useUnifiedTopology: true });
+const { Server } = require('socket.io');
 
+const Message = require('./models/adminmessages');
+const Startup = require('./models/startupmodel');
 
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
-  },
-});
+// ----- Settings (taken from .env, with sensible defaults for local development) -----
+const PORT = process.env.PORT || 4000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/startX';
 
+// ----- Database -----
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((error) => console.error('MongoDB connection failed:', error.message));
+
+// ----- Express app -----
+const app = express();
+app.use(cors()); // allow the frontend (on a different URL) to call this API
+app.use(express.json({ limit: '5mb' }));
+
+// Old profile pictures were saved as files in /uploads. New ones are stored in the database.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// Middleware
-app.use(cors());
-app.use(express.json());
 
-// Routes
-app.use("/auth", require("./routers/user/auth"));
-app.use("/admin", require("./routers/admin/auth"));
-app.use("/user", require("./routers/user/home"));
-app.use("/submit", require("./routers/user/forms"));
-app.use("/get" , require("./routers/admin/Data"))
-app.use('/review/' , require('./routers/reviewer/route'))
+// ----- Routes -----
+app.use('/auth', require('./routers/user/auth'));      // startup register / login / KYC
+app.use('/user', require('./routers/user/home'));      // startup dashboard data
+app.use('/submit', require('./routers/user/forms'));   // EIR, grant and monthly report forms
+app.use('/admin', require('./routers/admin/auth'));    // everything the admin does
+app.use('/review', require('./routers/reviewer/route')); // everything a reviewer does
 
-// Simple route for testing
+// Health check: open the backend URL in a browser to see if it is running
 app.get('/', (req, res) => {
-    res.send('Hello World!');
+  res.send('StartX backend is running');
 });
 
-// Socket.IO connection
+// ----- Live chat (Socket.IO) -----
+// Every startup has its own "room" (named after the startup id).
+// The startup and the admin both join that room, so they see each other's messages.
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+// Adds one message to a startup's chat history in the database
+async function saveMessage(startupId, message, sender) {
+  await Message.findOneAndUpdate(
+    { startup_id: startupId },
+    { $push: { messages: { message, sender, created_at: new Date() } } },
+    { upsert: true } // create the chat document if it does not exist yet
+  );
+}
+
 io.on('connection', (socket) => {
-    // console.log('A user connected:', socket.id);
-    // User joins a room based on their startupid from cookies
-    socket.on('joinRoom', (startupid) => {
-        socket.join(startupid); // Join the room with startupid
-        console.log(`User ${socket.id} joined room ${startupid}`);
-    });
+  socket.on('joinRoom', (startupId) => {
+    socket.join(startupId);
+  });
 
-    // Listen for messages from users in the room
-    socket.on('sendMessage', async ({ roomId, messageData }) => {
-        console.log("Message received from user in room:", roomId, messageData);
-        try {
-            io.to(roomId).emit('receiveMessage', messageData);
-            console.log(`Message sent to room ${roomId}:`, messageData);
-        } catch (error) {
-            console.error('Error sending message:', error);
-        }
-        
-        try {
-            // Find or create the message document for the specific startup
-            const existingMessages = await messageModel.findOne({ startup_id: roomId });
-            
-            if (existingMessages) {
-                console.log(existingMessages.startup_id, );
-                // If messages already exist, push the new message to the messages array
-                existingMessages.messsages[existingMessages.messsages.length]={
-                    message: messageData.message,
-                    sender: messageData.sender,
-                    created_at: new Date(),
-                };
-                await existingMessages.save(); // Save the updated document
-            } else {
-                // If no messages exist, create a new document
-                const newMessage = new messageModel({
-                    startup_id: roomId,
-                    messages: [{
-                        message: messageData.message,
-                        sender: messageData.sender,
-                        created_at: new Date(),
-                    }],
-                });
-                await newMessage.save(); // Save the new document
-            }
-            console.log("Message saved to database.");
-        } catch (error) {
-            console.error("Error saving message to database:", error);
-        }
-    });
-    socket.on('BroadcastMessage', async ({ messageData }) => {
-        console.log("Broadcasting message:", messageData);
-        try {
-            // Emit the broadcast message to all connected clients
-            io.emit('receiveMessage', messageData);
-            console.log("Broadcast message sent to all clients:", messageData);
-        } catch (error) {
-            console.error('Error broadcasting message:', error);
-        }
-    
-        try {
-            // Fetch all startups from the database (assuming you have a Startup model)
-            const allStartups = await startupModel.find();  // Adjust this to match your database query
-            if (allStartups && allStartups.length > 0) {
-                for (let startup of allStartups) {
-                    const roomId = startup._id;  // Assuming _id is the unique identifier for the startup
-                    // Find or create the message document for each startup
-                    const existingMessages = await messageModel.findOne({ startup_id: roomId });
-                    if (existingMessages) {
-                        // If messages already exist, push the new message to the messages array
-                        existingMessages.messsages.push({
-                            message: messageData.message,
-                            sender: messageData.sender,
-                            created_at: new Date(),
-                        });
-                        await existingMessages.save();  // Save the updated document
-                    } else {
-                        // If no messages exist, create a new document
-                        const newMessage = new messageModel({
-                            startup_id: roomId,
-                            messages: [{
-                                message: messageData.message,
-                                sender: messageData.sender,
-                                created_at: new Date(),
-                            }],
-                        });
-                        await newMessage.save();  // Save the new document
-                    }
-    
-                    console.log(`Message saved to database for startup ${roomId}.`);
-                }
-            } else {
-                console.log("No startups found.");
-            }
-        } catch (error) {
-            console.error("Error saving broadcast message to database:", error);
-        }
-    });
-    
+  // A message between one startup and the admin
+  socket.on('sendMessage', async ({ roomId, messageData }) => {
+    const message = { ...messageData, roomId, created_at: new Date() };
+    io.to(roomId).emit('receiveMessage', message);
+    try {
+      await saveMessage(roomId, messageData.message, messageData.sender);
+    } catch (error) {
+      console.error('Could not save message:', error.message);
+    }
+  });
 
-    // Handle user disconnect
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-    });
+  // The admin sends the same message to every startup
+  socket.on('BroadcastMessage', async ({ messageData }) => {
+    try {
+      const startups = await Startup.find({}, '_id');
+      for (const startup of startups) {
+        const roomId = startup._id.toString();
+        io.to(roomId).emit('receiveMessage', { ...messageData, roomId, created_at: new Date() });
+        await saveMessage(roomId, messageData.message, messageData.sender);
+      }
+    } catch (error) {
+      console.error('Could not broadcast message:', error.message);
+    }
+  });
 });
 
-// Start the server
-server.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });

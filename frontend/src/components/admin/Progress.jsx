@@ -1,3 +1,4 @@
+// /progress/:startup : charts of one startup's monthly revenue and expenses (admin only)
 import React, { useEffect, useState } from 'react';
 import {
   BarChart, Bar,
@@ -6,9 +7,9 @@ import {
   CartesianGrid, Tooltip, Legend,
   ResponsiveContainer
 } from 'recharts';
-import { useParams, Link } from 'react-router-dom'; // Import Link
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
-import { useNavigate } from 'react-router-dom';
+import api from '../../api';
 
 // Card component to display individual financial metrics
 const Card = ({ title, value, icon }) => (
@@ -23,60 +24,46 @@ const Card = ({ title, value, icon }) => (
   </div>
 );
 
-// Main component for the startup progress dashboard
-export default function EnhancedStartupProgress() {
-  const [data, setData] = useState([]); // State to hold fetched data
-  const [activeIndex, setActiveIndex] = useState(0);
+export default function StartupProgress() {
+  const [data, setData] = useState([]); // the startup's monthly progress reports
   const { startup } = useParams();
   const navigate = useNavigate();
-  
-  // Fetch data from the API on component mount
-  useEffect(() => {
-      const fetchData = async () => {
-          try {                            
-              const response = await fetch(`/get/progress/${startup}`); // Use the appropriate startup ID here
-              const result = await response.json();
-              console.log(result); // Log the result for debugging
-              setData(result); // Set the fetched data into state
-          } catch (error) {      
-              console.error('Error fetching data:', error);
-              setData([]); // Reset data on error
-          }   
-      };
-
-      fetchData();
-  }, [startup]); // Added startup as a dependency
-
-  // Calculate total revenue, expenses, and profit/loss
-  const totalRevenue = Array.isArray(data) ? data.reduce((sum, entry) => sum + entry.financials.revenue, 0) : 0;
-  const totalExpenses = Array.isArray(data) ? data.reduce((sum, entry) => sum + entry.financials.expenses, 0) : 0;
-  const profit = totalRevenue - totalExpenses;
 
   useEffect(() => {
-    const admin = Cookies.get('admin');
-    if (!admin) {
+    if (!Cookies.get('admin')) {
       navigate('/admin/login');
+      return;
     }
-  }, [navigate]);
+    api
+      .get(`/admin/progress/${startup}`)
+      .then((response) => setData(response.data))
+      .catch((error) => console.error('Error fetching progress:', error));
+  }, [startup, navigate]);
+
+  // Totals for the summary cards
+  const totalRevenue = data.reduce((sum, entry) => sum + (entry.financials?.revenue || 0), 0);
+  const totalExpenses = data.reduce((sum, entry) => sum + (entry.financials?.expenses || 0), 0);
+  const profit = totalRevenue - totalExpenses;
 
   return (
     <div className="container mx-auto p-4 space-y-8 bg-blue-50 min-h-screen">
       <h1 className="text-4xl font-bold text-center mb-8 text-blue-800">Startup Progress Dashboard</h1>
 
-      {/* Back Button */}
       <div className="mb-4">
-        <Link to="/admin">
-          <button className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
-            Back to Admin
-          </button>
+        <Link to="/admin" className="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+          ← Back to Admin
         </Link>
       </div>
 
+      {data.length === 0 && (
+        <p className="text-center text-blue-800">This startup has not submitted any monthly reports yet.</p>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} icon="💰" />
-        <Card title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon="💸" />
-        <Card title="Profit/Loss" value={`$${Math.abs(profit).toLocaleString()}`} icon={profit >= 0 ? "📈" : "📉"} />
+        <Card title="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon="💰" />
+        <Card title="Total Expenses" value={`₹${totalExpenses.toLocaleString()}`} icon="💸" />
+        <Card title={profit >= 0 ? 'Profit' : 'Loss'} value={`₹${Math.abs(profit).toLocaleString()}`} icon={profit >= 0 ? '📈' : '📉'} />
       </div>
 
       {/* Bar Chart */}
@@ -123,24 +110,17 @@ export default function EnhancedStartupProgress() {
         <div className="space-y-4">
           {data.map((item, index) => (
             <div key={item._id} className="flex items-center space-x-4">
-              <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
-                  index === activeIndex ? 'bg-blue-600' : 'bg-blue-400'
-                }`}
-              >
+              <div className="w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center text-white font-bold bg-blue-500">
                 {index + 1}
               </div>
               <div className="flex-1">
                 <h3 className="font-medium text-blue-800">{item.milestones}</h3>
-                <p className="text-sm text-blue-600">{item.month || 'N/A'}</p> {/* Display 'N/A' if month is not available */}
+                <p className="text-sm text-blue-600">{item.month || 'N/A'}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Startup Image */}
-      
     </div>
   );
 }

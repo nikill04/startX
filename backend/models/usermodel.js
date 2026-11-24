@@ -1,14 +1,11 @@
-const mongoose = require('mongoose')
-const {startupSchema} = require("./startupmodel")
+const mongoose = require('mongoose');
 
-const userschema = mongoose.Schema({
-    username : String , 
-    password : String , 
-    email:String,
-    startup : String
-}, {
-    timestamps: true // {{ edit_1 }}: Enable timestamps
-})
+// A startup's login account. "startup" holds the id of its Startup (KYC) document.
+const userSchema = new mongoose.Schema({
+  username: String,
+  password: String, // stored as a bcrypt hash, never as plain text
+  email: String,
+  startup: String,
+}, { timestamps: true });
 
-const usermodel = mongoose.model("user" , userschema)
-module.exports =usermodel
+module.exports = mongoose.model('user', userSchema);

@@ -1,0 +1,47 @@
+// Reviewer dashboard (/reviewer). The sidebar decides which tab is shown.
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Cookie from 'js-cookie';
+import { Users, FileText } from 'lucide-react';
+import Sidebar from '../Sidebar';
+import EIRApplications from './Eir';
+import Grants from './Grants';
+
+const tabs = [
+  { id: 'eirrequests', name: 'EIR Requests', icon: Users },
+  { id: 'grantrequests', name: 'Grant Requests', icon: FileText },
+];
+
+export default function ReviewerDashboard() {
+  const [selectedTab, setSelectedTab] = useState('eirrequests');
+  const isLoggedIn = Boolean(Cookie.get('reviewer'));
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoggedIn) navigate('/reviewer/login');
+  }, [isLoggedIn, navigate]);
+
+  const handleLogout = () => {
+    Cookie.remove('reviewer');
+    navigate('/');
+  };
+
+  if (!isLoggedIn) return null;
+
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <Sidebar
+        title="Reviewer Dashboard"
+        items={tabs}
+        selectedTab={selectedTab}
+        onSelect={setSelectedTab}
+        onLogout={handleLogout}
+        colorClass="bg-gradient-to-b from-teal-600 via-teal-500 to-green-500"
+      />
+      <div className="flex-1 min-w-0 p-4 md:p-8 overflow-auto">
+        {selectedTab === 'eirrequests' && <EIRApplications />}
+        {selectedTab === 'grantrequests' && <Grants />}
+      </div>
+    </div>
+  );
+}

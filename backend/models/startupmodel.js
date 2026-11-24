@@ -18,7 +18,7 @@ const StartupKYCSchema = new Schema({
         about: { type: String}
     },
     created_at: { type: Date, default: Date.now },
-    profile_picture: String
+    profile_picture: String // an image stored as text ("data:image/png;base64,...")
 });
 
 // Progress Tracking Schema

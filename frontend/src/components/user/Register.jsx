@@ -1,19 +1,41 @@
+// Startup registration. Two steps:
+//   1. create an account (username, email, password)  -- or sign in with Google
+//   2. fill in the company details ("KYC")
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import axios from 'axios'
 import Cookies from 'js-cookie'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import { FcGoogle } from 'react-icons/fc'
-import Loader from '../Loader'
+import api, { getErrorMessage } from '../../api'
 
-export default function Component() {
+const googleEnabled = Boolean(process.env.REACT_APP_GOOGLE_CLIENT_ID)
+
+const inputClass = "mt-1 block w-full px-4 py-3 bg-[#F5F5F5] border border-[#48CFCB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#229799] focus:border-transparent text-[#424242] placeholder-[#424242]"
+const buttonClass = "w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#229799] hover:bg-[#48CFCB] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#48CFCB] transition-colors duration-200 disabled:opacity-60"
+
+// The company detail fields shown in step 2: [field name, label, input type]
+const kycFields = [
+  ['company_name', 'Company Name', 'text'],
+  ['address', 'Address', 'text'],
+  ['contact_person_name', 'Contact Person Name', 'text'],
+  ['contact_person_email', 'Contact Person Email', 'email'],
+  ['contact_person_phone', 'Contact Person Phone', 'tel'],
+  ['incorporation_date', 'Incorporation Date', 'date'],
+  ['industry', 'Industry', 'text'],
+  ['website', 'Website', 'url'],
+]
+
+export default function Register() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // If we came here from the login page, the account already exists: go straight to step 2
+  const [userId, setUserId] = useState(location.state?.userId || null)
   const [isLoading, setIsLoading] = useState(false)
-  const [showKYCForm, setShowKYCForm] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
-  const navigate = useNavigate()
   const [kycDetails, setKycDetails] = useState({
     company_name: '',
     address: '',
@@ -24,58 +46,59 @@ export default function Component() {
     industry: '',
     website: '',
   })
- const user = Cookies.get('user')
+  const [profilePic, setProfilePic] = useState(null)
 
+  const showKYCForm = Boolean(userId)
+
+  // Step 1: create the account
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     try {
-      console.log(username);
-      const { data } = await axios.post(`http://localhost:4000/auth/register`, { username, password, email })
-      alert(data.message)
-      if (data.message === "Registration successful!") {
-        Cookies.set('user', data.userId)
-        setKycDetails({ ...kycDetails, user: data.userId })
-        setShowKYCForm(true)
-      }
+      const { data } = await api.post('/auth/register', { username, password, email })
+      Cookies.set('user', data.userId)
+      setUserId(data.userId)
     } catch (error) {
-      console.log(error);
-      alert('An error occurred during registration.')
+      alert(getErrorMessage(error))
     }
     setIsLoading(false)
   }
 
+  // Step 2: send the company details (and the optional picture) as a form
   const handleKYCSubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    // Append all fields from kycDetails to the FormData
-    Object.entries(kycDetails).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+    e.preventDefault()
+    const formData = new FormData()
+    Object.entries(kycDetails).forEach(([key, value]) => formData.append(key, value))
+    formData.append('user', userId)
+    if (profilePic) formData.append('profile_pic', profilePic)
 
-    // Append the user ID stored in cookies  
+    setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:4000/auth/kyc', {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await response.json();
-      if (response.ok) {
-        console.log('KYC submitted successfully!', result);
-        navigate('/home');
-      } else {
-        console.log('Error submitting KYC:', result.message);
-      }
+      const { data } = await api.post('/auth/kyc', formData)
+      Cookies.set('user', userId)
+      Cookies.set('startup', data.startup)
+      navigate('/home')
     } catch (error) {
-      console.error('Failed to submit KYC:', error);
+      alert(getErrorMessage(error))
     }
-  };
+    setIsLoading(false)
+  }
 
-  // REGISTER FORM BACK DOT's ANIMATION 
+  // After Google sign in: existing users with company details go to the dashboard, others fill step 2
+  const handleGoogleUser = (data) => {
+    Cookies.set('user', data.userId)
+    if (data.startup) {
+      Cookies.set('startup', data.startup)
+      navigate('/home')
+    } else {
+      setUserId(data.userId)
+    }
+  }
+
+  // Background animation: little dots moving around on a <canvas>
   useEffect(() => {
     const canvas = document.getElementById('bgCanvas')
     const ctx = canvas.getContext('2d')
-
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
 
@@ -91,208 +114,141 @@ export default function Component() {
     }
 
     let animationFrameId
-
     function animate() {
-      animationFrameId = requestAnimationFrame(animate) //requestAnimationFrame(animate) schedules the animate function to be called right before the browser renders the next frame.
-      // The browser determines the optimal time to call animate() based on the refresh rate of the screen (typically 60 times per second, or every 16.67 milliseconds).
-      // Inside animate(), the line requestAnimationFrame(animate) schedules the next call to animate() automatically.
-      // When the next frame is ready, the browser calls animate() again.
-      // This process repeats, creating a continuous loop.
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height)  // clears the canvas for every frame or Clears the entire canvas before drawing the next frame, avoiding trails from previous frames.
+      // Ask the browser to call animate() again before the next screen refresh (~60 times a second)
+      animationFrameId = requestAnimationFrame(animate)
+      ctx.clearRect(0, 0, canvas.width, canvas.height) // wipe the previous frame
 
       particles.forEach(particle => {
         particle.x += particle.vx
         particle.y += particle.vy
-
+        // Bounce off the edges
         if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1
         if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1
 
-        ctx.beginPath()
+        ctx.beginPath() // start a new circle (otherwise all circles get joined by lines)
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(72, 207, 203, 0.5)' // #48CFCB with opacity
+        ctx.fillStyle = 'rgba(72, 207, 203, 0.5)'
         ctx.fill()
-
-        // beingPath() ==> In canvas drawing, you use "paths" to define shapes or lines.
-        // beginPath() tells the canvas to start a new shape. This ensures that the next shape you draw is separate from the previous one.
-        // Without beginPath(), all shapes drawn in the loop would be treated as a single continuous shape. 
-        // For example: Imagine trying to draw 100 circles, but without beginPath(), the canvas connects them with lines!
-        // It resets the drawing path, so each particle is drawn as its own distinct circle.
       })
     }
-
     animate()
 
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      // The loop is stopped by calling cancelAnimationFrame(animationFrameId).
-      // This cleanup function runs when:
-      // The React component using useEffect is unmounted (removed from the DOM).
-      // It prevents further calls to animate().
-    }
+    // Stop the animation when we leave the page
+    return () => cancelAnimationFrame(animationFrameId)
   }, [])
 
-  const responsegoogle = async (authtesult) => {
-    try {
-      console.log(authtesult);
-      if (authtesult) {
-        const response = await axios.get(`http://localhost:4000/auth/google`, { params: { tokens: authtesult } });
-        if (response.data.message) {
-          if (response.data.message === 'Email Already Exists') {
-            Cookies.set('user', response.data.userId);
-            setKycDetails({ ...kycDetails, user: response.data.userId })
-            console.log(kycDetails);
-            Cookies.set('startup', response.data.startup);
-             navigate('/home')
-          }
-          Cookies.set('user', response.data.userId);
-          setKycDetails({ ...kycDetails, user: response.data.userId })
-          console.log('Registration successful:', response.data);
-          setShowKYCForm(!showKYCForm)
-        }
-      }
-    } catch (error) {
-      console.log("error is ", error);
-    }
-  }
-
-  const googlelogin = useGoogleLogin({
-    onSuccess: responsegoogle,
-    onError: responsegoogle,
-  });
-    
   return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5] p-4 relative">
-        <canvas id="bgCanvas" className="absolute top-0 left-0 w-full h-full" />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md relative z-10"
-        >
-          <div className="rounded-2xl overflow-hidden shadow-2xl bg-white">
-            <div className="bg-[#229799] p-8 text-white">
-              <h6 className="text-2xl font-bold text-center mb-2">Please Provide Us With Start Up Details</h6>
-            </div>
-            <div className="p-8 space-y-6">
-              {!showKYCForm ? (
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                      <label htmlFor="username" className="block text-sm font-medium text-[#424242]">Username</label>
-                      <input 
-                        id="username" 
-                        className="mt-1 block w-full px-4 py-3 bg-[#F5F5F5] border border-[#48CFCB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#229799] focus:border-transparent text-[#424242] placeholder-[#424242]"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required 
-                        placeholder="Enter your username"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="email" className="block text-sm font-medium text-[#424242]">Email</label>
-                      <input 
-                        id="email" 
-                        type="email" 
-                        className="mt-1 block w-full px-4 py-3 bg-[#F5F5F5] border border-[#48CFCB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#229799] focus:border-transparent text-[#424242] placeholder-[#424242]"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required 
-                        placeholder="Enter your email"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="password" className="block text-sm font-medium text-[#424242]">Password</label>
-                      <input 
-                        id="password" 
-                        type="password" 
-                        className="mt-1 block w-full px-4 py-3 bg-[#F5F5F5] border border-[#48CFCB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#229799] focus:border-transparent text-[#424242] placeholder-[#424242]"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required 
-                        placeholder="Enter your password"
-                      />
-                    </div>
-                    <button 
-                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#229799] hover:bg-[#48CFCB] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#48CFCB] transition-colors duration-200"
-                      type="submit" 
-                      disabled={isLoading} // This attribute disables the button, preventing it from being clicked when isLoading is true.
-                    >
-                      {isLoading ? <Loader/> : 'Register'}
-                    </button>
-                  </form>
-                </motion.div>
-              ) : (
-                <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <form onSubmit={handleKYCSubmit} className="space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5] p-4 relative">
+      <canvas id="bgCanvas" className="absolute top-0 left-0 w-full h-full" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="rounded-2xl overflow-hidden shadow-2xl bg-white">
+          <div className="bg-[#229799] p-8 text-white">
+            <h6 className="text-2xl font-bold text-center mb-2">
+              {showKYCForm ? 'Tell Us About Your Startup' : 'Register Your Startup'}
+            </h6>
+          </div>
+          <div className="p-8 space-y-6">
+            {!showKYCForm ? (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
-                  {Object.entries(kycDetails).map(([key, value]) => (
-                    (key !== 'user' && key !== 'profile_pic') && (
-                      <div key={key} className="space-y-2">
-                        <label htmlFor={key} className="block text-sm font-medium text-gray-700">
-                          {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                        </label>
-                        <input 
-                          id={key}
-                          type={key.includes('date') ? 'date' : key.includes('email') ? 'email' : 'text'} // key.includes('date') is a method call that checks if the string stored in key contains the substring 'date'
-                          className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          value={value}
-                          onChange={(e) => setKycDetails({ ...kycDetails, [key]: e.target.value })}
-                          required 
-                        />
-                      </div>
-                    )
-                  ))}
+                    <label htmlFor="username" className="block text-sm font-medium text-[#424242]">Username</label>
+                    <input id="username" className={inputClass} value={username} onChange={(e) => setUsername(e.target.value)} required placeholder="Enter your username" />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="profile_pic" className="block text-sm font-medium text-[#424242]">Profile Picture</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-[#424242]">Email</label>
+                    <input id="email" type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Enter your email" />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="password" className="block text-sm font-medium text-[#424242]">Password</label>
+                    <input id="password" type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4} placeholder="Enter your password" />
+                  </div>
+                  <button className={buttonClass} type="submit" disabled={isLoading}>
+                    {isLoading ? 'Registering...' : 'Register'}
+                  </button>
+                </form>
+
+                {googleEnabled && <GoogleButton onSignedIn={handleGoogleUser} />}
+              </motion.div>
+            ) : (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+                <form onSubmit={handleKYCSubmit} className="space-y-4">
+                  {kycFields.map(([key, label, type]) => (
+                    <div key={key} className="space-y-1">
+                      <label htmlFor={key} className="block text-sm font-medium text-gray-700">{label}</label>
+                      <input
+                        id={key}
+                        type={type}
+                        className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        value={kycDetails[key]}
+                        onChange={(e) => setKycDetails({ ...kycDetails, [key]: e.target.value })}
+                        placeholder={type === 'url' ? 'https://...' : ''}
+                        required
+                      />
+                    </div>
+                  ))}
+                  <div className="space-y-1">
+                    <label htmlFor="profile_pic" className="block text-sm font-medium text-[#424242]">Profile Picture (optional, max 1 MB)</label>
                     <input
                       id="profile_pic"
-                      type="file" // Specifies that this input is for file uploads. The user can select a file from their system using this input.
-                      className="mt-1 block w-full px-4 py-3 bg-[#F5F5F5] border border-[#48CFCB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#229799] focus:border-transparent text-[#424242] placeholder-[#424242]"
-                      onChange={(e) => setKycDetails({ ...kycDetails, profile_pic: e.target.files[0] })}
-                      // Yes, as profile_pic does not already exist in the kycDetails object, this code will create a new field named profile_pic within the kycDetails object.
-                      // onChange={(e) => ...}: Triggers whenever a file is selected.
-                      // e.target.files is an array-like object containing the files selected by the user. e.target.files[0] refers to the first file selected.
-                      required
+                      type="file"
+                      accept="image/*"
+                      className={inputClass}
+                      onChange={(e) => setProfilePic(e.target.files[0])}
                     />
                   </div>
-                  <button
-                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#229799] hover:bg-[#48CFCB] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#48CFCB] transition-colors duration-200"
-                    type="submit"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Submitting KYC...' : 'Submit KYC'}
+                  <button className={buttonClass} type="submit" disabled={isLoading}>
+                    {isLoading ? 'Submitting...' : 'Submit Details'}
                   </button>
                 </form>
               </motion.div>
-              
-              )}
-              <div className="relative flex items-center justify-center mt-8">
-                <span className="absolute inset-x-0 h-px bg-[#48CFCB]"></span>
-                <span className="relative px-4 text-sm text-[#424242] bg-white">or</span>
-              </div>
-            
-             
-                  <button
-                    onClick={googlelogin}
-                    className="mt-4 flex items-center justify-center w-full py-3 px-4 border border-[#48CFCB] rounded-lg shadow-sm text-sm font-medium text-[#424242] bg-white hover:bg-[#F5F5F5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#48CFCB] transition-colors duration-200"
-                  >
-                    <FcGoogle className="mr-2" /> Sign in with Google
-                  </button>
+            )}
 
-              <Link to={'/login'}>Login</Link>
-            </div>
+            <p className="text-center text-sm text-[#424242]">
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-[#229799] hover:underline">Login</Link>
+            </p>
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// "Sign in with Google" button. It is only shown when REACT_APP_GOOGLE_CLIENT_ID is set,
+// because Google's login code crashes the page without a client id.
+function GoogleButton({ onSignedIn }) {
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const { data } = await api.get('/auth/google', { params: { access_token: tokenResponse.access_token } })
+        onSignedIn(data)
+      } catch (error) {
+        alert(getErrorMessage(error))
+      }
+    },
+    onError: () => alert('Google sign in failed. Please try again.'),
+  })
+
+  return (
+    <>
+      <div className="relative flex items-center justify-center mt-8">
+        <span className="absolute inset-x-0 h-px bg-[#48CFCB]"></span>
+        <span className="relative px-4 text-sm text-[#424242] bg-white">or</span>
       </div>
+      <button
+        type="button"
+        onClick={() => googleLogin()}
+        className="mt-4 flex items-center justify-center w-full py-3 px-4 border border-[#48CFCB] rounded-lg shadow-sm text-sm font-medium text-[#424242] bg-white hover:bg-[#F5F5F5] transition-colors duration-200"
+      >
+        <FcGoogle className="mr-2" /> Sign in with Google
+      </button>
+    </>
   )
 }

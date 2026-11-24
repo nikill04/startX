@@ -1,13 +1,13 @@
-const mongoose = require("mongoose")
+const mongoose = require('mongoose');
 
-const messageSchema = mongoose.Schema({
-    startup_id:String,
-    messsages:[{
-      message:String,
-      sender:String,
-      created_at: { type: Date, default: Date.now }
-    }]
-})
+// The chat history between one startup and the admin
+const messageSchema = new mongoose.Schema({
+  startup_id: String,
+  messages: [{
+    message: String,
+    sender: String, // "User" (the startup) or "admin"
+    created_at: { type: Date, default: Date.now },
+  }],
+});
 
-const messageModel = mongoose.model("admin_messages",messageSchema)
-module.exports = messageModel
+module.exports = mongoose.model('admin_messages', messageSchema);

@@ -1,64 +1,49 @@
-'use client';
-
+// Admin tab "Reviewers": list of reviewers + a form to add a new one
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Plus, X } from 'lucide-react';
-import Loader from '../Loader'
-import axios from 'axios';
-// Mock axios for demonstration purposes
+import Loader from '../Loader';
+import api, { getErrorMessage } from '../../api';
+
+const emptyReviewer = { name: '', email: '', password: '', organization: '', about: '' };
+const inputClass = 'w-full p-2 bg-white rounded-md border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500';
 
 export default function Reviewers() {
   const [reviewers, setReviewers] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [newReviewer, setNewReviewer] = useState({
-    name: '',
-    email: '',
-    password: '',
-    organization: '',
-    about: ''
-  });
+  const [newReviewer, setNewReviewer] = useState(emptyReviewer);
 
   useEffect(() => {
-    const fetchReviewers = async () => {
-      try {
-        const response = await axios.get('http://localhost:4000/review/reviewers');
-        setReviewers(response.data);
-      } catch (err) {
-        console.error('Error fetching reviewers:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReviewers();
+    api
+      .get('/review/reviewers')
+      .then((response) => setReviewers(response.data))
+      .catch((error) => console.error('Error fetching reviewers:', error))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewReviewer((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewReviewer({ ...newReviewer, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:4000/review/add-reviewer', newReviewer);
+      const response = await api.post('/review/add-reviewer', newReviewer);
       setReviewers([...reviewers, response.data]);
-      setNewReviewer({ name: '', email: '', password: '', organization: '', about: '' });
+      setNewReviewer(emptyReviewer);
       setIsFormVisible(false);
-    } catch (err) {
-      console.error('Error adding reviewer:', err);
+      alert('Reviewer added. They can now log in at /reviewer/login');
+    } catch (error) {
+      alert(getErrorMessage(error));
     }
   };
 
   return (
-    <div className="container mx-auto p-4 text-white">
+    <div className="container mx-auto p-4">
       <h2 className="text-3xl font-bold mb-6 text-center text-purple-500">Reviewers Management</h2>
-      
-      <motion.button 
+
+      <motion.button
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="mb-6 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-full transition-colors flex items-center"
         whileHover={{ scale: 1.05 }}
@@ -69,10 +54,9 @@ export default function Reviewers() {
       </motion.button>
 
       {isFormVisible && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
           className="mb-6 bg-purple-100 p-6 rounded-lg shadow-lg text-black"
         >
@@ -80,65 +64,29 @@ export default function Reviewers() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-1">Name</label>
-              <input
-                id="name"
-                name="name"
-                value={newReviewer.name}
-                onChange={handleChange}
-                required
-                className="w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <input id="name" name="name" value={newReviewer.name} onChange={handleChange} required className={inputClass} />
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={newReviewer.email}
-                onChange={handleChange}
-                required
-                className="w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <input id="email" name="email" type="email" value={newReviewer.email} onChange={handleChange} required className={inputClass} />
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium mb-1">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={newReviewer.password}
-                onChange={handleChange}
-                required
-                className="w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <input id="password" name="password" type="password" value={newReviewer.password} onChange={handleChange} required minLength={4} className={inputClass} />
             </div>
             <div>
               <label htmlFor="organization" className="block text-sm font-medium mb-1">Organization</label>
-              <input
-                id="organization"
-                name="organization"
-                value={newReviewer.organization}
-                onChange={handleChange}
-                className="w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <input id="organization" name="organization" value={newReviewer.organization} onChange={handleChange} className={inputClass} />
             </div>
             <div>
               <label htmlFor="about" className="block text-sm font-medium mb-1">About</label>
-              <textarea
-                id="about"
-                name="about"
-                value={newReviewer.about}
-                onChange={handleChange}
-                rows={3}
-                className="w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <textarea id="about" name="about" value={newReviewer.about} onChange={handleChange} rows={3} className={inputClass} />
             </div>
-            <motion.button 
-              type="submit" 
+            <motion.button
+              type="submit"
               className="w-full p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               Add Reviewer
             </motion.button>
@@ -147,13 +95,12 @@ export default function Reviewers() {
       )}
 
       {loading ? (
-        <div className="flex justify-center items-center mt-6">
-           <Loader/>
-        </div>
+        <Loader />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {reviewers.length === 0 && <p className="text-gray-600">No reviewers yet.</p>}
           {reviewers.map((reviewer) => (
-            <motion.div 
+            <motion.div
               key={reviewer._id}
               className="bg-purple-100 p-4 rounded-lg shadow-lg text-black"
               initial={{ opacity: 0, scale: 0.9 }}

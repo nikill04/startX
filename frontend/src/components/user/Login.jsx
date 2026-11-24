@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import { 
-  Container, Button, Typography, Box, Grid, Paper 
+import React, { useState, useEffect } from 'react';
+import {
+  Container, Button, Typography, Box, Grid, Paper
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import Cookies from 'js-cookie';
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import image from '../../assets/icon.jpg';
-import Cookie from 'js-cookie';
-import axios from 'axios';
+import api, { getErrorMessage } from '../../api';
 
 
 const circleVariants = {
@@ -35,24 +33,27 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post('/auth/login', { email, password });
-      if (data.message === 'Login successful') {
-        Cookie.set('user', data.userId);
-        Cookie.set('startup', data.startup);
+      const { data } = await api.post('/auth/login', { email, password });
+      Cookies.set('user', data.userId);
+      if (data.startup) {
+        Cookies.set('startup', data.startup);
         navigate('/home');
+      } else {
+        // Account exists but the company details (KYC) were never filled in
+        alert('Please complete your startup details first.');
+        navigate('/register', { state: { userId: data.userId } });
       }
     } catch (error) {
-      alert('Error: ' + error.response.data.error);
+      alert('Error: ' + getErrorMessage(error));
     }
   };
-  const user = Cookies.get('user');
-  const startup = Cookies.get('startup');
 
+  // Already logged in? Go straight to the dashboard.
   useEffect(() => {
-    if (user && startup) {
-      return navigate('/home');
+    if (Cookies.get('user') && Cookies.get('startup')) {
+      navigate('/home');
     }
-})
+  }, [navigate]);
 
   return (
     <Container maxWidth="md" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>

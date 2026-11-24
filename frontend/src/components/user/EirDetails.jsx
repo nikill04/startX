@@ -1,94 +1,57 @@
-"use client"
-
+// "EIR Application" section: list of this startup's EIR applications + a form to apply
 import React, { useState } from 'react'
-import axios from 'axios'
 import Cookie from 'js-cookie'
-import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import api, { getErrorMessage } from '../../api'
+import { getStatusColor } from '../../status'
 
-export default function Component({ eirList }) {
+// "a, b , c" -> ["a", "b", "c"]
+const toList = (text) => text.split(',').map((item) => item.trim()).filter(Boolean)
+
+export default function EIRDetails({ eirList, reload }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const navigate = useNavigate()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const startup = Cookie.get('startup')
 
-  const [startup_id] = useState(startup || '')
   const [entrepreneurName, setEntrepreneurName] = useState('')
   const [entrepreneurEmail, setEntrepreneurEmail] = useState('')
   const [entrepreneurBackground, setEntrepreneurBackground] = useState('')
   const [entrepreneurIndustryExperience, setEntrepreneurIndustryExperience] = useState('')
-  const [previousVentures, setPreviousVentures] = useState([''])
+  const [previousVentures, setPreviousVentures] = useState('')     // comma separated
   const [startupName, setStartupName] = useState('')
-  const [mentorshipStartups, setMentorshipStartups] = useState([''])
+  const [mentorshipStartups, setMentorshipStartups] = useState('') // comma separated
   const [personalGoals, setPersonalGoals] = useState('')
 
   const openModal = () => setIsModalOpen(true)
   const closeModal = () => setIsModalOpen(false)
 
-  const handlePreviousVenturesChange = (index, value) => {
-    const updatedVentures = [...previousVentures]
-    updatedVentures[index] = value
-    setPreviousVentures(updatedVentures)
-  }
-
-  const handleMentorshipStartupsChange = (index, value) => {
-    const updatedMentorshipStartups = [...mentorshipStartups]
-    updatedMentorshipStartups[index] = value
-    setMentorshipStartups(updatedMentorshipStartups)
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-
     const formData = {
-      startup_id,
       entrepreneur: {
         name: entrepreneurName,
         background: entrepreneurBackground,
-        email:entrepreneurEmail,
+        email: entrepreneurEmail,
         industry_experience: entrepreneurIndustryExperience,
-        previous_ventures: previousVentures,
+        previous_ventures: toList(previousVentures),
       },
       startup_name: startupName,
       objectives: {
-        mentorship_startups: mentorshipStartups,
+        mentorship_startups: toList(mentorshipStartups),
         personal_goals: personalGoals,
       },
     }
 
+    setIsSubmitting(true)
     try {
-      const response = await axios.post(`/submit/eir/${startup}`, formData)
-      console.log('Form Data Submitted:', formData)
+      await api.post(`/submit/eir/${startup}`, formData)
+      alert('EIR application submitted!')
       closeModal()
+      reload() // show the new application in the list
     } catch (error) {
-      console.error('Error submitting form:', error)
-      alert('An error occurred while submitting the form. Please try again.')
+      alert(getErrorMessage(error))
     }
-  }
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Approved': return 'bg-green-200 text-green-800';
-      case 'Rejected': return 'bg-red-200 text-red-800';
-      case 'In Progress': return 'bg-yellow-200 text-yellow-800';
-      case 'Short Listed': return 'bg-blue-200 text-blue-800';
-      case 'Under Review': return 'bg-purple-200 text-purple-800';
-      default: return 'bg-gray-200 text-gray-800';
-    }
-  };
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'Applied':
-        return 'text-yellow-600 font-bold'
-      case 'Approved':
-        return 'text-green-600 font-bold'
-      case 'Rejected':
-        return 'text-red-600 font-bold'
-      case 'In Progress':
-        return 'text-blue-600 font-bold'
-      case 'Completed':
-        return 'text-purple-600 font-bold'
-      default:
-        return 'text-gray-600'
-    }
+    setIsSubmitting(false)
   }
 
   return (
@@ -131,7 +94,7 @@ export default function Component({ eirList }) {
             >
               {eirList.map((eir, index) => (
                 <motion.div
-                  key={index}
+                  key={eir._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * index, duration: 0.5 }}
@@ -153,7 +116,7 @@ export default function Component({ eirList }) {
                 </span>
               </div>
                   <p className="text-gray-700 mt-2">
-                    <strong>Personal Goals:</strong> {eir.objectives.personal_goals || 'No goals provided.'}
+                    <strong>Personal Goals:</strong> {eir.objectives?.personal_goals || 'No goals provided.'}
                   </p>
                 </motion.div>
               ))}
@@ -170,7 +133,7 @@ export default function Component({ eirList }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -195,7 +158,7 @@ export default function Component({ eirList }) {
                 <div>
                   <label className="block text-gray-700 mb-1">Email</label>
                   <input
-                    type="text"
+                    type="email"
                     value={entrepreneurEmail}
                     onChange={(e) => setEntrepreneurEmail(e.target.value)}
                     className="border border-gray-300 p-2 w-full rounded"
@@ -224,7 +187,7 @@ export default function Component({ eirList }) {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 mb-1">Previous Ventures</label>
+                  <label className="block text-gray-700 mb-1">Previous Ventures (comma separated)</label>
                     <input
                       type="text"
                       value={previousVentures}
@@ -247,7 +210,7 @@ export default function Component({ eirList }) {
                 <h3 className="font-bold text-lg text-[#00ADB5] mt-6">Objectives</h3>
 
                 <div>
-                  <label className="block text-gray-700 mb-1">Mentorship Startups</label>
+                  <label className="block text-gray-700 mb-1">Mentorship Startups (comma separated)</label>
                     <input
                       type="text"
                       value={mentorshipStartups}
@@ -279,9 +242,10 @@ export default function Component({ eirList }) {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       type="submit"
-                      className="bg-[#00ADB5] hover:bg-[#00A1A1] text-white font-bold py-2 px-4 rounded transition duration-300"
+                      disabled={isSubmitting}
+                      className="bg-[#00ADB5] hover:bg-[#00A1A1] text-white font-bold py-2 px-4 rounded transition duration-300 disabled:opacity-60"
                     >
-                      Submit
+                      {isSubmitting ? 'Submitting...' : 'Submit'}
                     </motion.button>
                   </div>
                 </form>

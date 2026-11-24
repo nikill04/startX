@@ -1,23 +1,28 @@
+// "Grants Application" section: this startup's grant applications + a form to apply
 import React, { useState } from 'react';
-import axios from 'axios';
 import Cookie from 'js-cookie';
 import { motion } from 'framer-motion'
+import api, { getErrorMessage } from '../../api';
+import { getStatusColor } from '../../status';
 
-export default function GrantDetails({ grant }) {
+const emptyForm = {
+  name: '',
+  organization: '',
+  email: '',
+  phone: '',
+  pan: '',
+  aadhar: '',
+  address: '',
+  project_title: '',
+  description: '',
+  total_funding_required: '',
+  funding_breakdown: [{ item: '', amount: '' }],
+};
+
+export default function GrantDetails({ grant, reload }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    organization: '',
-    email: '',
-    phone: '',
-    pan:'',
-    aadhar: '',
-    address: '',
-    project_title: '',
-    description: '',
-    total_funding_required: '',
-    funding_breakdown: [{ item: '', amount: '' }],
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState(emptyForm);
   const startup = Cookie.get('startup');
   
   const openModal = () => {
@@ -38,8 +43,10 @@ export default function GrantDetails({ grant }) {
 
   const handleFundingChange = (index, e) => {
     const { name, value } = e.target;
-    const updatedFundingBreakdown = [...formData.funding_breakdown];
-    updatedFundingBreakdown[index][name] = value;
+    // Copy the row before changing it (never change React state directly)
+    const updatedFundingBreakdown = formData.funding_breakdown.map((row, i) =>
+      i === index ? { ...row, [name]: value } : row
+    );
     setFormData({
       ...formData,
       funding_breakdown: updatedFundingBreakdown,
@@ -63,15 +70,24 @@ export default function GrantDetails({ grant }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post(`/submit/funds/${startup}`, formData);
-    closeModal();
+    setIsSubmitting(true);
+    try {
+      await api.post(`/submit/funds/${startup}`, formData);
+      alert('Grant application submitted!');
+      setFormData(emptyForm);
+      closeModal();
+      reload(); // show the new application in the list
+    } catch (error) {
+      alert(getErrorMessage(error));
+    }
+    setIsSubmitting(false);
   };
 
   return (
     <>
-      <nav className="bg-gradient-to-r from-gray-200 to-gray-300 shadow-md">
+      <div className="bg-gradient-to-r from-gray-200 to-gray-300 shadow-md rounded-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3">
             <h1 className="text-2xl font-bold text-black">Grant Application Portal</h1>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -83,13 +99,14 @@ export default function GrantDetails({ grant }) {
             </motion.button>
           </div>
         </div>
-      </nav>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {grant.length === 0 && <p className="text-gray-700">No grant applications yet.</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {grant.map((g, index) => (
             <motion.div
-              key={index}
+              key={g._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -99,14 +116,8 @@ export default function GrantDetails({ grant }) {
                 <h2 className="text-2xl font-bold mb-4 text-teal-800">{g.project_proposal.project_title}</h2>
                 <p className="text-gray-600 mb-4"><strong>Description:</strong> {g.project_proposal.description}</p>
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-teal-600 font-semibold"><strong>Amount:</strong> {g.project_proposal.budget.total_funding_required}</span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      g.grant_status.status === "Approved" 
-                        ? "bg-green-200 text-green-800" 
-                        : g.grant_status.status === "Rejected" 
-                        ? "bg-red-200 text-red-800" 
-                        : "bg-yellow-200 text-yellow-800"
-                    }`}>
+                  <span className="text-teal-600 font-semibold"><strong>Amount:</strong> ₹{g.project_proposal.budget.total_funding_required}</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(g.grant_status.status)}`}>
                       <strong>Status:</strong> {g.grant_status.status}
                     </span>
                 </div>
@@ -122,8 +133,8 @@ export default function GrantDetails({ grant }) {
       </div>
 
       {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white text-black rounded-lg shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto p-5">
             <h2 className="text-xl font-bold mb-4">Grant Application Form</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -287,54 +298,16 @@ export default function GrantDetails({ grant }) {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  disabled={isSubmitting}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-60"
                 >
-                  Submit
+                  {isSubmitting ? 'Submitting...' : 'Submit'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      
-      {/* Inline styles to ensure responsiveness */}
-      <style jsx>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .modal {
-          background-color: #fff;
-          border-radius: 8px;
-          color: black;
-          max-width: 90vw; /* Ensure the modal width doesn't exceed the viewport width */
-          width: 600px; /* Set a fixed width */
-          max-height: 90%; /* Limit the height */
-          overflow-y: auto; /* Allow scrolling if the content is too tall */
-          padding: 20px; /* Add padding */
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        @media (max-width: 640px) {
-          .modal {
-            width: 100%; /* On small devices, take full width */
-          }
-        }
-
-        .grant-container {
-          overflow: auto; /* Add this to allow scrolling within the grant container */
-          max-height: 80vh; /* Limit height for scrolling */
-        }
-      `}</style>
     </>
   );
 }
