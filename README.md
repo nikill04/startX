@@ -32,6 +32,8 @@ Admin login: `admin` / `12345` (change it with `ADMIN_USERNAME` / `ADMIN_PASSWOR
 
 ## Deploying (free)
 
+**Live:** https://startx-hub.vercel.app (frontend, Vercel) → https://startx-backend-iijf.onrender.com (backend, Render) → MongoDB Atlas database `startX`. Pushing to `master` redeploys both automatically.
+
 - **Database:** MongoDB Atlas free cluster → put its connection string in `MONGO_URI`.
 - **Backend:** Render web service, root directory `backend`, build `npm install`, start `npm start`, env vars from `backend/.env.example`.
 - **Frontend:** Vercel project, root directory `frontend`, env `REACT_APP_API_URL=https://<your-render-backend>.onrender.com`.
