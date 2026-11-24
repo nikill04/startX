@@ -21,26 +21,29 @@ import ReviewerDashboard from './components/reviewer/Dashboard';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/home" element={<Home />} />
+    <div className="App">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/home" element={<Home />} />
 
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/report" element={<Report />} />
-        <Route path="/progress/:startup" element={<Progress />} />
-        <Route path="/selectreviewers/:id" element={<SelectReviewers type="eir" />} />
-        <Route path="/grants/selectreviewers/:id" element={<SelectReviewers type="grant" />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<Admin />} />
+          {/* PDF report of all startups (original address) */}
+          <Route path="/temp" element={<Report />} />
+          <Route path="/progress/:startup" element={<Progress />} />
+          <Route path="/selectreviewers/:id" element={<SelectReviewers type="eir" />} />
+          <Route path="/grants/selectreviewers/:id" element={<SelectReviewers type="grant" />} />
 
-        <Route path="/reviewer/register" element={<ReviewerRegister />} />
-        <Route path="/reviewer/login" element={<ReviewerLogin />} />
-        <Route path="/reviewer" element={<ReviewerDashboard />} />
+          <Route path="/reviewer/register" element={<ReviewerRegister />} />
+          <Route path="/reviewer/login" element={<ReviewerLogin />} />
+          <Route path="/reviewer" element={<ReviewerDashboard />} />
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 // The left side menu used by the Admin and Reviewer dashboards.
+// It looks and animates exactly like the original AdminNavbar / reviewer Navbar.
 //
 // Props:
 //   title       - text at the top, e.g. "Admin Dashboard"
@@ -8,47 +9,64 @@
 //   onLogout    - called when "Logout" is clicked
 //   colorClass  - Tailwind background classes for the menu
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronRight, LogOut } from 'lucide-react';
 
 export default function Sidebar({ title, items, selectedTab, onSelect, onLogout, colorClass }) {
-  // Start collapsed on small (phone) screens so the page content has room
-  const [isExpanded, setIsExpanded] = useState(window.innerWidth >= 768);
+  const [isExpanded, setIsExpanded] = useState(true);
 
-  const itemClass = 'w-full p-4 flex items-center gap-4 hover:bg-white/10 transition-colors';
+  // Logout is shown as the last item of the list
+  const allItems = [...items, { id: 'logout', name: 'Logout', icon: LogOut }];
 
   return (
-    <aside
-      className={`${isExpanded ? 'w-64' : 'w-20'} flex-shrink-0 h-screen sticky top-0 flex flex-col text-white shadow-lg transition-all duration-300 ${colorClass}`}
+    <motion.div
+      initial={{ width: 250 }}
+      animate={{ width: isExpanded ? 250 : 80 }}
+      transition={{ duration: 0.3 }}
+      className={`h-screen ${colorClass} text-white shadow-lg`}
     >
-      <div className="p-4 flex items-center justify-between gap-2">
-        {isExpanded && <h1 className="text-xl font-bold">{title}</h1>}
-        <button
+      <div className="p-6">
+        <motion.h1
+          initial={{ opacity: 1 }}
+          animate={{ opacity: isExpanded ? 1 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="text-2xl font-bold"
+        >
+          {isExpanded ? title : ''}
+        </motion.h1>
+      </div>
+      <div className="flex justify-between p-4">
+        <motion.button
           onClick={() => setIsExpanded(!isExpanded)}
           className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-          title={isExpanded ? 'Collapse menu' : 'Expand menu'}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
-          {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-        </button>
+          <ChevronRight size={24} className={!isExpanded ? '' : 'rotate-180'} />
+        </motion.button>
       </div>
-
-      <nav className="mt-4 flex-1">
-        {items.map((item) => (
-          <button
+      <nav className="mt-8 flex-1">
+        {allItems.map((item) => (
+          <motion.button
             key={item.id}
-            onClick={() => onSelect(item.id)}
-            title={item.name}
-            className={`${itemClass} ${selectedTab === item.id ? 'bg-white/20 font-semibold' : ''}`}
+            onClick={() => (item.id === 'logout' ? onLogout() : onSelect(item.id))}
+            className={`w-full text-left p-4 flex items-center space-x-4 hover:bg-white/10 transition-colors ${
+              selectedTab === item.id ? 'bg-white/20' : ''
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <item.icon size={24} className="flex-shrink-0" />
-            {isExpanded && <span>{item.name}</span>}
-          </button>
+            <item.icon size={24} />
+            <motion.span
+              initial={{ opacity: 1 }}
+              animate={{ opacity: isExpanded ? 1 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {isExpanded ? item.name : ''}
+            </motion.span>
+          </motion.button>
         ))}
       </nav>
-
-      <button onClick={onLogout} title="Logout" className={`${itemClass} mb-4`}>
-        <LogOut size={24} className="flex-shrink-0" />
-        {isExpanded && <span>Logout</span>}
-      </button>
-    </aside>
+    </motion.div>
   );
 }

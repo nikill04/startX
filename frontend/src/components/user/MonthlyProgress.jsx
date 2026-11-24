@@ -7,7 +7,6 @@ import api, { getErrorMessage } from '../../api'
 
 const MonthlyProgressReport = ({ progress, reload }) => {
   const [formVisible, setFormVisible] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [month, setMonth] = useState('')
   const [milestones, setMilestones] = useState('')
   const [issues, setIssues] = useState('')
@@ -17,7 +16,6 @@ const MonthlyProgressReport = ({ progress, reload }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsSubmitting(true)
     try {
       // Empty revenue/expenses are saved as 0
       const numbers = { revenue: Number(financials.revenue) || 0, expenses: Number(financials.expenses) || 0 }
@@ -26,9 +24,8 @@ const MonthlyProgressReport = ({ progress, reload }) => {
       resetForm()
       reload() // show the new report
     } catch (error) {
-      alert(getErrorMessage(error))
+      console.error('Error submitting report:', getErrorMessage(error))
     }
-    setIsSubmitting(false)
   }
 
   const resetForm = () => {
@@ -62,11 +59,10 @@ const MonthlyProgressReport = ({ progress, reload }) => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
-                type="month"
+                type="text"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
                 placeholder="Month"
-                title="Month"
                 required
                 className="border border-teal-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
@@ -105,16 +101,14 @@ const MonthlyProgressReport = ({ progress, reload }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="submit"
-              disabled={isSubmitting}
-              className="disabled:opacity-60 mt-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-3 rounded-full font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+              className="mt-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-3 rounded-full font-semibold shadow-md hover:shadow-lg transition-all duration-300"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+              Submit Report
             </motion.button>
           </motion.form>
         )}
       </AnimatePresence>
       <h3 className="text-2xl font-semibold mb-4 text-teal-800">Submitted Monthly Reports:</h3>
-      {progress.length === 0 && <p className="text-teal-700">No reports submitted yet.</p>}
       <motion.ul className="space-y-4">
         <AnimatePresence>
           {progress.map((data, index) => (
@@ -153,10 +147,10 @@ const MonthlyProgressReport = ({ progress, reload }) => {
                       <strong className="text-teal-600">Issues:</strong> {data.issues_faced}
                     </p>
                     <p className="mb-2">
-                      <strong className="text-teal-600">Revenue:</strong> ₹{data.financials?.revenue ?? 0}
+                      <strong className="text-teal-600">Revenue:</strong> ${data.financials?.revenue}
                     </p>
                     <p>
-                      <strong className="text-teal-600">Expenses:</strong> ₹{data.financials?.expenses ?? 0}
+                      <strong className="text-teal-600">Expenses:</strong> ${data.financials?.expenses}
                     </p>
                   </motion.div>
                 )}

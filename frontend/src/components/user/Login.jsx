@@ -39,8 +39,7 @@ const LoginPage = () => {
         Cookies.set('startup', data.startup);
         navigate('/home');
       } else {
-        // Account exists but the company details (KYC) were never filled in
-        alert('Please complete your startup details first.');
+        // Account exists but the company details (KYC) were never filled in: go to step 2 of register
         navigate('/register', { state: { userId: data.userId } });
       }
     } catch (error) {

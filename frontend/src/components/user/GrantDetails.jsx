@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import Cookie from 'js-cookie';
 import { motion } from 'framer-motion'
 import api, { getErrorMessage } from '../../api';
-import { getStatusColor } from '../../status';
 
 const emptyForm = {
   name: '',
@@ -21,7 +20,6 @@ const emptyForm = {
 
 export default function GrantDetails({ grant, reload }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const startup = Cookie.get('startup');
   
@@ -70,24 +68,21 @@ export default function GrantDetails({ grant, reload }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
     try {
       await api.post(`/submit/funds/${startup}`, formData);
-      alert('Grant application submitted!');
-      setFormData(emptyForm);
       closeModal();
       reload(); // show the new application in the list
     } catch (error) {
+      // The original form failed silently here; at least tell the user what went wrong
       alert(getErrorMessage(error));
     }
-    setIsSubmitting(false);
   };
 
   return (
     <>
-      <div className="bg-gradient-to-r from-gray-200 to-gray-300 shadow-md rounded-lg">
+      <nav className="bg-gradient-to-r from-gray-200 to-gray-300 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3">
+          <div className="flex items-center justify-between h-16">
             <h1 className="text-2xl font-bold text-black">Grant Application Portal</h1>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -99,10 +94,9 @@ export default function GrantDetails({ grant, reload }) {
             </motion.button>
           </div>
         </div>
-      </div>
+      </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {grant.length === 0 && <p className="text-gray-700">No grant applications yet.</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {grant.map((g, index) => (
             <motion.div
@@ -116,8 +110,14 @@ export default function GrantDetails({ grant, reload }) {
                 <h2 className="text-2xl font-bold mb-4 text-teal-800">{g.project_proposal.project_title}</h2>
                 <p className="text-gray-600 mb-4"><strong>Description:</strong> {g.project_proposal.description}</p>
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-teal-600 font-semibold"><strong>Amount:</strong> ₹{g.project_proposal.budget.total_funding_required}</span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(g.grant_status.status)}`}>
+                  <span className="text-teal-600 font-semibold"><strong>Amount:</strong> {g.project_proposal.budget.total_funding_required}</span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      g.grant_status.status === "Approved"
+                        ? "bg-green-200 text-green-800"
+                        : g.grant_status.status === "Rejected"
+                        ? "bg-red-200 text-red-800"
+                        : "bg-yellow-200 text-yellow-800"
+                    }`}>
                       <strong>Status:</strong> {g.grant_status.status}
                     </span>
                 </div>
@@ -133,8 +133,8 @@ export default function GrantDetails({ grant, reload }) {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white text-black rounded-lg shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto p-5">
+        <div className="fixed inset-0 z-[1000] bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white text-black rounded-lg w-full sm:w-[600px] max-w-[90vw] max-h-[90%] overflow-y-auto p-5 shadow-[0_4px_10px_rgba(0,0,0,0.1)]">
             <h2 className="text-xl font-bold mb-4">Grant Application Form</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -298,10 +298,9 @@ export default function GrantDetails({ grant, reload }) {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-60"
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit'}
+                  Submit
                 </button>
               </div>
             </form>

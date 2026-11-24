@@ -3,16 +3,15 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { API_URL } from '../../api'
 
-// Profile pictures are stored as "data:image/..." text. Very old ones were files on the server.
+// Profile pictures are stored as "data:image/..." text. Very old ones were files on the server,
+// and startups without a picture get the server's default.png.
 function pictureUrl(picture) {
-  if (!picture || picture === 'default.png') return null
-  if (picture.startsWith('data:')) return picture
-  return `${API_URL}/uploads/profiles/${picture}`
+  if (picture && picture.startsWith('data:')) return picture
+  return `${API_URL}/uploads/profiles/${picture || 'default.png'}`
 }
 
 export default function StartupDetails({ kyc, progress }) {
   const latestProgress = [...progress].reverse().slice(0, 4) // newest first
-  const picture = pictureUrl(kyc.profile_picture)
 
   return (
     <div className="container mx-auto p-4 space-y-6 bg-gray-50">
@@ -26,13 +25,12 @@ export default function StartupDetails({ kyc, progress }) {
         <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-md overflow-hidden">
           <div className="p-4 md:p-5">
             <div className="flex items-center space-x-3 pb-3">
-              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm bg-teal-500 flex items-center justify-center">
-                {picture ? (
-                  <img src={picture} alt={kyc.company_name} className="w-full h-full object-cover" />
-                ) : (
-                  // No picture: show the first letter of the company name
-                  <span className="text-3xl font-bold text-white">{kyc.company_name?.charAt(0).toUpperCase()}</span>
-                )}
+              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm">
+                <img
+                  src={pictureUrl(kyc.profile_picture)}
+                  alt={kyc.company_name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <h2 className="text-2xl font-semibold text-gray-800">{kyc.company_name}</h2>
@@ -63,9 +61,6 @@ export default function StartupDetails({ kyc, progress }) {
         <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-md overflow-hidden">
           <div className="p-4 md:p-5">
             <h3 className="text-xl font-semibold mb-3 text-gray-800">Latest Progress</h3>
-            {latestProgress.length === 0 && (
-              <p className="text-gray-600 text-sm">No reports yet. Add one from "Monthly Progress".</p>
-            )}
             <div className="space-y-3 max-h-72 overflow-y-auto">
               {latestProgress.map((monthData, index) => (
                 <motion.div
@@ -80,8 +75,8 @@ export default function StartupDetails({ kyc, progress }) {
                     <p><strong>Milestone:</strong> {monthData.milestones}</p>
                     <p><strong>Issues:</strong> {monthData.issues_faced}</p>
                     <div className="flex justify-between">
-                      <p><strong>Revenue:</strong> ₹{monthData.financials?.revenue ?? 0}</p>
-                      <p><strong>Expenses:</strong> ₹{monthData.financials?.expenses ?? 0}</p>
+                      <p><strong>Revenue:</strong> ${monthData.financials?.revenue}</p>
+                      <p><strong>Expenses:</strong> ${monthData.financials?.expenses}</p>
                     </div>
                   </div>
                 </motion.div>

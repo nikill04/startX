@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronDown, ChevronUp, Home, Users, FileText, User, Mail, Download } from 'lucide-react';
+import { ChevronDown, ChevronUp, Home, Users, FileText, User, Mail } from 'lucide-react';
 import { setStartups, setEirRequests, setGrantRequests, setVisibleDetails } from '../../redux/adminSlice';
 import Sidebar from '../Sidebar';
 import EIRRequests from './EirRequests';
@@ -69,7 +69,7 @@ export default function Admin() {
   if (!isLoggedIn) return null;
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100">
       <Sidebar
         title="Admin Dashboard"
         items={tabs}
@@ -79,20 +79,11 @@ export default function Admin() {
         colorClass="bg-gradient-to-b from-purple-700 via-purple-600 to-indigo-700"
       />
 
-      <div className="flex-1 min-w-0 p-4 md:p-8 overflow-auto">
+      <div className="flex-1 p-8 overflow-auto">
         {selectedTab === 'startups' && (
           <div>
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <h2 className="text-3xl font-bold text-purple-800">Startups</h2>
-              <Link
-                to="/admin/report"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-              >
-                <Download size={16} /> Download PDF Report
-              </Link>
-            </div>
-            {startups.length === 0 && <p className="text-gray-600 mb-4">No startups have registered yet.</p>}
-            <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+            <h2 className="text-3xl font-bold mb-6 text-purple-800">Startups</h2>
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
@@ -147,8 +138,8 @@ export default function Admin() {
                                   <DetailItem label="Contact Person" value={startup.kyc?.contact_person?.name} />
                                   <DetailItem label="Contact Email" value={startup.kyc?.contact_person?.email} />
                                   <DetailItem label="Contact Phone" value={startup.kyc?.contact_person?.phone} />
-                                  <Link className="font-semibold text-purple-700 hover:underline" to={`/progress/${startup._id}`}>
-                                    View Progress Charts →
+                                  <Link className="font-semibold text-purple-700" to={`/progress/${startup._id}`}>
+                                    Progress
                                   </Link>
                                 </div>
                               </div>

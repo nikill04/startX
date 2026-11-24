@@ -12,6 +12,7 @@ export default function Messages() {
   const [isLoading, setIsLoading] = useState(true);
   const socketRef = useRef(null); // the live connection to the backend
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const startup = Cookies.get("startup");
 
   useEffect(() => {
@@ -48,58 +49,65 @@ export default function Messages() {
       messageData: { message: newMessage, sender: "User" },
     });
     setNewMessage("");
-  };
-
-  // Enter sends the message, Shift+Enter makes a new line
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+    inputRef.current?.focus(); // put the cursor back in the text box
   };
 
   return (
-    <div className="flex flex-col h-[75vh] w-full max-w-4xl mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-lg overflow-hidden">
+    <div className="flex flex-col h-[90vh] w-full max-w-4xl mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-lg overflow-hidden">
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.length === 0 && (
-            <p className="text-center text-gray-500">No messages yet. Say hello to the StartX team!</p>
-          )}
+        <div
+          className="flex-1 overflow-y-auto p-6 space-y-4"
+          style={{ maxHeight: "75vh" }}
+        >
           <AnimatePresence>
-            {messages.map((msg, index) => {
-              const isMine = msg.sender === "User";
-              return (
+            {messages.map((msg, index) => (
+              <motion.div
+                key={msg._id || index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className={`flex ${
+                  msg.sender === "User" ? "justify-end" : "justify-start"
+                }`}
+              >
                 <motion.div
-                  key={msg._id || index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                  whileHover={{ scale: 1.02 }}
+                  className={`p-4 rounded-lg max-w-xs lg:max-w-lg ${
+                    msg.sender === "admin"
+                      ? "bg-blue-500 text-white"
+                      : "bg-green-500 text-white"
+                  }`}
                 >
-                  <div className={`p-4 rounded-lg max-w-xs lg:max-w-lg text-white ${isMine ? "bg-green-500" : "bg-blue-500"}`}>
-                    <p className="text-sm font-semibold">{isMine ? "You" : "Admin"}</p>
-                    <p className="mt-1 text-sm lg:text-base whitespace-pre-wrap">{msg.message}</p>
-                  </div>
+                  <p className="text-sm font-semibold">
+                    {msg.sender === "User" ? "You" : msg.sender}
+                  </p>
+                  <p className="mt-1 text-sm lg:text-base">{msg.message}</p>
                 </motion.div>
-              );
-            })}
+              </motion.div>
+            ))}
           </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>
       )}
 
-      <div className="p-4 bg-white shadow-lg">
+      <motion.div
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="p-4 bg-white shadow-lg"
+      >
         <div className="flex items-center space-x-2">
           <textarea
+            ref={inputRef}
             className="flex-1 p-3 border border-gray-300 bg-gray-50 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out resize-none"
-            placeholder="Type your message... (Enter to send)"
+            placeholder="Type your message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
             rows={1}
           />
           <motion.button
@@ -107,12 +115,11 @@ export default function Messages() {
             whileTap={{ scale: 0.95 }}
             className="bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
             onClick={handleSendMessage}
-            title="Send"
           >
             <Send size={20} />
           </motion.button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

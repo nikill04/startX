@@ -28,7 +28,7 @@ router.post('/login', (req, res) => {
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     return res.status(200).json({ message: 'Login successful' });
   }
-  res.status(401).json({ message: 'Wrong username or password' });
+  res.status(401).json({ message: 'Wrong Credentials' });
 });
 
 // GET /admin/startups  -> all startups

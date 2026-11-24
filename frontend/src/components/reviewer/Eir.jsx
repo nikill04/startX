@@ -4,30 +4,40 @@ import Cookies from 'js-cookie';
 import Toast from '../Toast';
 import Loader from '../Loader';
 import ReviewForm from './ReviewForm';
-import api, { getErrorMessage } from '../../api';
+import api from '../../api';
 
-const formatDate = (date) =>
-  new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+const getStatusStyle = (status) => {
+  return status === 'pending'
+    ? 'bg-yellow-200 text-yellow-800'
+    : 'bg-green-200 text-green-800';
+};
+
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
 
 export default function EIRApplications() {
+  const [expandedApp, setExpandedApp] = useState(null);
   const reviewer = Cookies.get('reviewer');
   const [applications, setApplications] = useState([]);
-  const [expandedApp, setExpandedApp] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState({ message: '', type: '' });
 
   // This reviewer's own review inside an application
-  const myReview = (app) => app.reviews.find((review) => review.reviewer_id === reviewer);
+  const myReview = (app) => app.reviews?.find((r) => r.reviewer_id === reviewer);
 
   const fetchEIRs = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await api.get(`/review/${reviewer}/reviews`);
-      // Applications still waiting for my review come first
-      const isPending = (app) => app.reviews.find((r) => r.reviewer_id === reviewer)?.status === 'pending';
-      setApplications(response.data.sort((a, b) => isPending(b) - isPending(a)));
+      setApplications(response.data);
     } catch (error) {
-      setToast({ message: getErrorMessage(error), type: 'error' });
+      console.error(error);
+      setToast({ message: 'Failed to load applications.', type: 'error' });
     }
     setIsLoading(false);
   }, [reviewer]);
@@ -36,45 +46,49 @@ export default function EIRApplications() {
     fetchEIRs();
   }, [fetchEIRs]);
 
-  // Hide the toast after 2 seconds
+  // Hide the toast after 2 seconds (it used to stay on screen forever)
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 2000);
+    if (!toast.message) return;
+    const timer = setTimeout(() => setToast({ message: '', type: '' }), 2000);
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const submitReview = async (appId, rating, comment) => {
+  // Returns true when the review was saved
+  const handleSubmitReview = async (appId, rating, comment) => {
     setIsLoading(true);
+    let saved = false;
     try {
       await api.post(`/review/eir/${appId}/${reviewer}`, { rating, comment });
       setToast({ message: 'Review submitted successfully!', type: 'success' });
+      saved = true;
       await fetchEIRs();
     } catch (error) {
-      setToast({ message: getErrorMessage(error), type: 'error' });
+      console.error('Error submitting review:', error);
+      setToast({ message: 'Failed to submit review. Please try again.', type: 'error' });
     }
     setIsLoading(false);
+    return saved;
   };
 
   return (
-    <div className="max-w-screen-xl mx-auto p-2 md:p-8">
+    <div className="max-w-screen-xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6 text-purple-800">EIR Applications</h1>
       {isLoading && <Loader />}
-      {toast && <Toast message={toast.message} type={toast.type} />}
-      {!isLoading && applications.length === 0 && (
-        <p className="text-gray-600">No EIR applications have been assigned to you yet.</p>
-      )}
+      {toast.message && <Toast message={toast.message} type={toast.type} />}
 
       {applications.map((app) => {
-        const status = myReview(app)?.status || 'pending';
+        const reviewStatus = myReview(app)?.status || 'N/A';
+        const isPending = reviewStatus === 'pending';
+
         return (
           <div key={app._id} className="bg-white shadow-lg rounded-lg mb-6">
             <div
-              className="bg-gray-100 p-4 cursor-pointer flex justify-between items-center gap-2"
+              className="bg-gray-100 p-4 cursor-pointer flex justify-between items-center"
               onClick={() => setExpandedApp(expandedApp === app._id ? null : app._id)}
             >
               <span className="text-xl font-semibold">{app.startup_name}</span>
-              <span className={`py-1 px-3 rounded-full text-sm ${status === 'pending' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}`}>
-                {status === 'pending' ? 'Review pending' : 'Reviewed'}
+              <span className={`py-1 px-3 rounded-full text-sm ${getStatusStyle(reviewStatus)}`}>
+                {reviewStatus}
               </span>
             </div>
             {expandedApp === app._id && (
@@ -85,20 +99,29 @@ export default function EIRApplications() {
                     <p><strong>Name:</strong> {app.entrepreneur.name}</p>
                     <p><strong>Email:</strong> {app.entrepreneur.email}</p>
                     <p><strong>Background:</strong> {app.entrepreneur.background}</p>
-                    <p><strong>Industry Experience:</strong> {app.entrepreneur.industry_experience || 'N/A'}</p>
-                    <p><strong>Previous Ventures:</strong> {app.entrepreneur.previous_ventures.join(', ') || 'N/A'}</p>
+                    <p><strong>Industry Experience:</strong> {app.entrepreneur.industry_experience}</p>
+                    <p><strong>Previous Ventures:</strong> {app.entrepreneur.previous_ventures?.join(', ')}</p>
 
                     <h2 className="text-lg font-semibold text-purple-700 mt-4">Objectives</h2>
-                    <p><strong>Mentorship Startups:</strong> {app.objectives?.mentorship_startups?.join(', ') || 'N/A'}</p>
-                    <p><strong>Personal Goals:</strong> {app.objectives?.personal_goals || 'N/A'}</p>
+                    <p><strong>Mentorship Startups:</strong> {app.objectives?.mentorship_startups?.join(', ')}</p>
+                    <p><strong>Personal Goals:</strong> {app.objectives?.personal_goals}</p>
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-purple-700 mt-4">Application Details</h2>
-                    <p><strong>Application Status:</strong> {app.status.status}</p>
+                    <p><strong>Startup ID:</strong> {app.startup_id}</p>
                     <p><strong>Created At:</strong> {formatDate(app.created_at)}</p>
+                    {app.status?.decision_date && (
+                      <p><strong>Decision Date:</strong> {formatDate(app.status.decision_date)}</p>
+                    )}
                   </div>
                 </div>
-                <ReviewForm myReview={myReview(app)} onSubmit={(rating, comment) => submitReview(app._id, rating, comment)} />
+
+                {/* Locked once my review is done; shows what I submitted */}
+                <ReviewForm
+                  myReview={myReview(app)}
+                  disabled={!isPending}
+                  onSubmit={(rating, comment) => handleSubmitReview(app._id, rating, comment)}
+                />
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 import React, { useState , useEffect } from 'react';
 import Cookies from 'js-cookie';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Container, Paper, Typography, Box, TextField, Button } from '@mui/material'; // Ensure to import Material-UI components
 import image from '../../assets/StartX.png';
 import api, { getErrorMessage } from '../../api';
@@ -31,7 +31,7 @@ const AdminLogin = () => {
             {/* Left side - Login Form */}
             <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: '400px', flex: 1 }}>
                 <Typography variant="h4" component="h1" gutterBottom align="center">
-                    Admin Login
+                    Login
                 </Typography>
 
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
@@ -63,9 +63,6 @@ const AdminLogin = () => {
                         Login
                     </Button>
                 </Box>
-                <Typography align="center" sx={{ mt: 2 }}>
-                    <Link to="/" style={{ color: '#6200ea' }}>Back to home</Link>
-                </Typography>
             </Paper>
 
             {/* Right side - Image */}

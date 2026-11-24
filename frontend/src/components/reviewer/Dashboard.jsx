@@ -9,7 +9,7 @@ import Grants from './Grants';
 
 const tabs = [
   { id: 'eirrequests', name: 'EIR Requests', icon: Users },
-  { id: 'grantrequests', name: 'Grant Requests', icon: FileText },
+  { id: 'grantrequests', name: 'grantrequests', icon: FileText },
 ];
 
 export default function ReviewerDashboard() {
@@ -26,10 +26,11 @@ export default function ReviewerDashboard() {
     navigate('/');
   };
 
+  // Don't load the tabs (and their requests) while redirecting to login
   if (!isLoggedIn) return null;
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100">
       <Sidebar
         title="Reviewer Dashboard"
         items={tabs}
@@ -38,7 +39,8 @@ export default function ReviewerDashboard() {
         onLogout={handleLogout}
         colorClass="bg-gradient-to-b from-teal-600 via-teal-500 to-green-500"
       />
-      <div className="flex-1 min-w-0 p-4 md:p-8 overflow-auto">
+
+      <div className="flex-1 p-8 overflow-auto">
         {selectedTab === 'eirrequests' && <EIRApplications />}
         {selectedTab === 'grantrequests' && <Grants />}
       </div>

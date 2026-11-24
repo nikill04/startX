@@ -9,7 +9,6 @@ import EIRDetails from './EirDetails';
 import GrantDetails from './GrantDetails';
 import Messages from './Messages';
 import MonthlyProgress from './MonthlyProgress';
-import Loader from '../Loader';
 import api from '../../api';
 import { setUserData, setStartupData, setEirData, setGrantSchemeData } from '../../redux/startupSlice';
 
@@ -48,27 +47,25 @@ export default function StartupHomepage() {
     reload();
   }, [user, startup, navigate, reload]);
 
-  // Wait until the data is loaded (and make sure it belongs to the logged-in startup)
-  if (!startupData || startupData._id !== startup) {
-    return <Loader />;
-  }
+  // Only show the data once it is loaded and belongs to the logged-in startup
+  const loaded = startupData && startupData._id === startup;
 
   return (
     <div className="flex bg-white flex-col min-h-screen">
-      <Navbar activeComponent={activeComponent} setActiveComponent={setActiveComponent} />
+      <Navbar setActiveComponent={setActiveComponent} />
       <main className="container mx-auto px-4 py-8 flex-grow text-gray-800">
-        {activeComponent === 'details' && (
+        {activeComponent === 'details' && loaded && (
           <StartupDetails kyc={startupData.kyc} progress={startupData.progress} />
         )}
-        {activeComponent === 'eir' && <EIRDetails eirList={eirData} reload={reload} />}
-        {activeComponent === 'grant' && <GrantDetails grant={grantSchemeData} reload={reload} />}
+        {activeComponent === 'eir' && loaded && <EIRDetails eirList={eirData} reload={reload} />}
+        {activeComponent === 'grant' && loaded && <GrantDetails grant={grantSchemeData} reload={reload} />}
         {activeComponent === 'messages' && <Messages />}
-        {activeComponent === 'monthly' && (
+        {activeComponent === 'monthly' && loaded && (
           <MonthlyProgress progress={startupData.progress} reload={reload} />
         )}
       </main>
       <footer className="bg-gray-200 text-gray-800 py-4 text-center">
-        © {new Date().getFullYear()} StartX
+        StartX. . 
       </footer>
     </div>
   );

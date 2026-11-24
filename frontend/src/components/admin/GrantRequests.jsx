@@ -1,86 +1,101 @@
 // Admin tab "Grants Requests": see every grant application, change its status, pick reviewers
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import Loader from '../Loader';
-import Toast from '../Toast';
 import ReviewsPopup from './ReviewsPopup';
-import api, { getErrorMessage } from '../../api';
+import api from '../../api';
 import { getStatusColor } from '../../status';
 
-const buttonClass = 'text-white px-4 py-1 rounded shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+// Grants still waiting for a decision come first, then shortlisted, approved and rejected ones
+const SORT_ORDER = { 'Short Listed': 1, Approved: 2, Rejected: 3 };
+const sortSchemes = (schemes) =>
+  [...schemes].sort((a, b) => (SORT_ORDER[a.grant_status?.status] || 0) - (SORT_ORDER[b.grant_status?.status] || 0));
 
-export default function GrantRequests({ grantSchemes, reload }) {
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [openProject, setOpenProject] = useState(null);     // id whose project details are open
-  const [openApplicant, setOpenApplicant] = useState(null); // id whose applicant details are open
-  const [reviewsOpenFor, setReviewsOpenFor] = useState(null);
+export default function GrantApplicationComponent({ grantSchemes, reload }) {
+  const [openApplicant, setOpenApplicant] = useState(null);
+  const [openProject, setOpenProject] = useState(null);
+  const [openSections, setOpenSections] = useState({}); // which grant's reviews popup is open
 
-  // Hide the toast after 2 seconds
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 2000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const updateStatus = async (id, status) => {
-    if (!window.confirm(`Mark this grant as "${status}"?`)) return;
-    setLoading(true);
-    try {
-      await api.post('/admin/grant/status', { id, status });
-      setToast({ type: 'success', message: `Marked as ${status}` });
-      await reload();
-    } catch (error) {
-      setToast({ type: 'error', message: getErrorMessage(error) });
-    }
-    setLoading(false);
+  const toggleSection = (requestId) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [requestId]: !prev[requestId],
+    }));
   };
 
+  const toggleProjectDropdown = (id) => {
+    setOpenProject(openProject === id ? null : id);
+  };
+
+  const toggleApplicantDropdown = (id) => {
+    setOpenApplicant(openApplicant === id ? null : id);
+  };
+
+  const updateGrantStatus = async (id, status) => {
+    const isConfirmed = window.confirm(`Are you sure you want to mark this grant as ${status}?`);
+    if (!isConfirmed) return;
+    try {
+      await api.post('/admin/grant/status', { id, status });
+      await reload();
+    } catch (error) {
+      console.error(`Failed to mark the grant request as ${status}:`, error);
+    }
+  };
+
+  const handleReject = (id) => updateGrantStatus(id, 'Rejected');
+  const handleAccept = (id) => updateGrantStatus(id, 'Approved');
+  const handleShortList = (id) => updateGrantStatus(id, 'Short Listed');
+
   return (
-    <div className="container mx-auto p-2 md:p-6 space-y-6">
-      {loading && <Loader />}
+    <div className="container mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold mb-6">Grant Scheme Applications</h1>
 
-      <AnimatePresence>
-        {toast && <Toast message={toast.message} type={toast.type} />}
-      </AnimatePresence>
-
-      {grantSchemes.length === 0 && <p className="text-gray-600">No grant applications yet.</p>}
-
-      {grantSchemes.map((scheme) => {
-        const status = scheme.grant_status?.status || 'Submitted';
+      {sortSchemes(grantSchemes).map((scheme) => {
+        const status = scheme.grant_status?.status;
         const isDecided = status === 'Approved' || status === 'Rejected';
-        const budget = scheme.project_proposal.budget;
+        // Shortlisting and picking reviewers are closed once shortlisted or decided
+        const isLocked = isDecided || status === 'Short Listed';
 
         return (
           <div key={scheme._id} className="border rounded-lg shadow-md mb-6 p-5 bg-white">
-            <div className="flex flex-wrap justify-between items-center gap-2">
+            <div className="flex justify-between items-center">
               <h2
                 className="text-xl font-semibold cursor-pointer"
-                onClick={() => setOpenProject(openProject === scheme._id ? null : scheme._id)}
+                onClick={() => toggleProjectDropdown(scheme._id)}
               >
                 {scheme.project_proposal.project_title}
                 <span className="ml-2">{openProject === scheme._id ? '▲' : '▼'}</span>
               </h2>
               <p className="text-gray-500">
-                Submitted by {scheme.applicant.name} on {new Date(scheme.created_at).toLocaleDateString()}
+                Submitted by {scheme.applicant.name} on{' '}
+                {new Date(scheme.created_at).toLocaleDateString()}
               </p>
             </div>
 
             {openProject === scheme._id && (
               <div className="mt-4 bg-gray-100 p-4 rounded-lg">
                 <h3 className="font-medium mb-2">Project Proposal</h3>
-                <p><strong>Description:</strong> {scheme.project_proposal.description}</p>
-                <p className="mt-4">
-                  <strong>Total Funding Required:</strong> ₹{Number(budget.total_funding_required || 0).toLocaleString()}
+                <p>
+                  <strong>Description:</strong> {scheme.project_proposal.description}
                 </p>
-                <p><strong>Funding Breakdown:</strong></p>
+                <p>
+                  <strong>Objectives:</strong>
+                </p>
                 <ul className="list-disc list-inside ml-4">
-                  {budget.funding_breakdown.map((item) => (
-                    <li key={item._id}>
-                      {item.item}: ₹{Number(item.amount || 0).toLocaleString()}
+                  {(scheme.project_proposal.objectives || []).map((objective, index) => (
+                    <li key={index}>{objective}</li>
+                  ))}
+                </ul>
+                <p className="mt-4">
+                  <strong>Total Funding Required:</strong> ${Number(scheme.project_proposal.budget.total_funding_required || 0).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Funding Breakdown:</strong>
+                </p>
+                <ul className="list-disc list-inside ml-4">
+                  {scheme.project_proposal.budget.funding_breakdown.map((item, index) => (
+                    <li key={item._id || index}>
+                      {item.item}: ${Number(item.amount || 0).toLocaleString()}
                     </li>
                   ))}
                 </ul>
@@ -90,7 +105,7 @@ export default function GrantRequests({ grantSchemes, reload }) {
             <div className="mt-4 border-t pt-4">
               <button
                 className="text-xl font-semibold w-full text-left"
-                onClick={() => setOpenApplicant(openApplicant === scheme._id ? null : scheme._id)}
+                onClick={() => toggleApplicantDropdown(scheme._id)}
               >
                 Applicant Details
                 <span className="ml-2">{openApplicant === scheme._id ? '▲' : '▼'}</span>
@@ -98,63 +113,95 @@ export default function GrantRequests({ grantSchemes, reload }) {
 
               {openApplicant === scheme._id && (
                 <div className="mt-2 bg-gray-100 p-4 rounded-lg">
-                  <p><strong>Name:</strong> {scheme.applicant.name}</p>
-                  {scheme.applicant.organization && <p><strong>Organization:</strong> {scheme.applicant.organization}</p>}
-                  <p><strong>Email:</strong> {scheme.applicant.contact_details.email}</p>
-                  {scheme.applicant.contact_details.phone && <p><strong>Phone:</strong> {scheme.applicant.contact_details.phone}</p>}
-                  {scheme.applicant.contact_details.address && <p><strong>Address:</strong> {scheme.applicant.contact_details.address}</p>}
-                  {scheme.applicant.pan && <p><strong>PAN:</strong> {scheme.applicant.pan}</p>}
-                  {scheme.applicant.aadhar_num && <p><strong>Aadhar:</strong> {scheme.applicant.aadhar_num}</p>}
+                  <h3 className="font-medium mb-2">Applicant Details</h3>
+                  <p>
+                    <strong>Name:</strong> {scheme.applicant.name}
+                  </p>
+                  {scheme.applicant.organization && (
+                    <p>
+                      <strong>Organization:</strong> {scheme.applicant.organization}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Email:</strong> {scheme.applicant.contact_details.email}
+                  </p>
+                  {scheme.applicant.contact_details.phone && (
+                    <p>
+                      <strong>Phone:</strong> {scheme.applicant.contact_details.phone}
+                    </p>
+                  )}
+                  {scheme.applicant.contact_details.address && (
+                    <p>
+                      <strong>Address:</strong> {scheme.applicant.contact_details.address}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-4">
+            <div className="mt-4 flex items-center">
               <div className="flex-1">
-                <span className={`px-3 py-1 rounded font-semibold ${getStatusColor(status)}`}>{status}</span>
+                <span className={`px-3 py-1 rounded font-semibold ${getStatusColor(status)}`}>
+                  {status || 'N/A'}
+                </span>
                 <button
                   className="text-lg font-semibold cursor-pointer flex items-center mt-4"
-                  onClick={() => setReviewsOpenFor(scheme._id)}
+                  onClick={() => toggleSection(scheme._id)}
                 >
-                  Reviews ({scheme.reviews.filter((r) => r.status === 'completed').length}/{scheme.reviews.length})
+                  Reviews
                   <span className="ml-2">
-                    {reviewsOpenFor === scheme._id ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                    {openSections[scheme._id] ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                   </span>
                 </button>
-                {reviewsOpenFor === scheme._id && (
-                  <ReviewsPopup reviews={scheme.reviews} onClose={() => setReviewsOpenFor(null)} />
+                {openSections[scheme._id] && (
+                  <ReviewsPopup reviews={scheme.reviews} onClose={() => toggleSection(scheme._id)} />
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex space-x-2">
                 <button
-                  className={`bg-blue-600 hover:bg-blue-700 ${buttonClass}`}
-                  onClick={() => updateStatus(scheme._id, 'Approved')}
-                  disabled={isDecided}
-                >
-                  Accept
-                </button>
-                <button
-                  className={`bg-red-600 hover:bg-red-700 ${buttonClass}`}
-                  onClick={() => updateStatus(scheme._id, 'Rejected')}
+                  className={`bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded shadow-md transition-colors ${
+                    isDecided ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => handleReject(scheme._id)}
                   disabled={isDecided}
                 >
                   Reject
                 </button>
+
                 <button
-                  className={`bg-yellow-600 hover:bg-yellow-700 ${buttonClass}`}
-                  onClick={() => updateStatus(scheme._id, 'Short Listed')}
-                  disabled={isDecided || status === 'Short Listed'}
+                  className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded shadow-md transition-colors ${
+                    isDecided ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => handleAccept(scheme._id)}
+                  disabled={isDecided}
                 >
-                  Mark Shortlisted
+                  Accept
                 </button>
-                {isDecided ? (
-                  <button className={`bg-gray-600 ${buttonClass}`} disabled>Select Reviewers</button>
-                ) : (
-                  <Link to={`/grants/selectreviewers/${scheme._id}`} className={`bg-gray-600 hover:bg-gray-700 ${buttonClass}`}>
+
+                <button
+                  className={`bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-1 rounded shadow-md transition-colors ${
+                    isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => handleShortList(scheme._id)}
+                  disabled={isLocked}
+                >
+                  Mark as ShortListed
+                </button>
+                {/* The link must not open the page while the button is disabled */}
+                <Link
+                  to={`/grants/selectreviewers/${scheme._id}`}
+                  onClick={(e) => isLocked && e.preventDefault()}
+                >
+                  <button
+                    className={`bg-gray-600 hover:bg-gray-700 text-white px-4 py-1 rounded shadow-md transition-colors ${
+                      isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    disabled={isLocked}
+                  >
                     Select Reviewers
-                  </Link>
-                )}
+                  </button>
+                </Link>
               </div>
             </div>
           </div>

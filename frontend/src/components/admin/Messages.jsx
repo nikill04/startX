@@ -69,18 +69,16 @@ export default function StartupMessages() {
 
   const handleBroadcastMessage = () => {
     if (inputMessage.trim() === '') return
-    if (!window.confirm('Send this message to ALL startups?')) return
     socketRef.current.emit('BroadcastMessage', {
       messageData: { message: inputMessage, sender: 'admin' },
     })
     setInputMessage('')
-    alert('Message sent to all startups')
   }
 
   const selectedName = startups.find((s) => s._id === selectedStartup)?.kyc?.company_name
 
   return (
-    <div className="flex flex-col h-[85vh] bg-purple-50 rounded-lg overflow-hidden shadow">
+    <div className="flex flex-col h-screen bg-purple-50">
       <AnimatePresence mode="wait">
         {selectedStartup ? (
           <motion.div
@@ -91,35 +89,36 @@ export default function StartupMessages() {
             transition={{ duration: 0.3 }}
             className="flex flex-col h-full"
           >
-            <div className="bg-purple-400 p-4 flex items-center text-white">
-              <button onClick={closeChat} className="mr-4 hover:text-purple-100 focus:outline-none" title="Back">
+            <div className="p-4 flex items-center">
+              <button
+                onClick={closeChat}
+                className="mr-4 hover:text-purple-200 focus:outline-none transition-colors duration-200"
+              >
                 <ArrowLeft className="h-6 w-6" />
               </button>
               <h2 className="text-xl font-bold">{selectedName}</h2>
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
-              {messages.length === 0 && <p className="text-center text-gray-500">No messages yet.</p>}
-              {messages.map((message, index) => {
-                const fromAdmin = message.sender === 'admin'
-                return (
-                  <motion.div
-                    key={message._id || index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`mb-4 ${fromAdmin ? 'text-right' : 'text-left'}`}
+              {/* All bubbles sit on the left; the admin's own are purple */}
+              {messages.map((message, index) => (
+                <motion.div
+                  key={message._id || index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mb-4 text-left"
+                >
+                  <span
+                    className={`inline-block p-3 rounded-lg ${
+                      message.sender === 'admin'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white text-purple-800 shadow'
+                    }`}
                   >
-                    <span
-                      className={`inline-block p-3 rounded-lg max-w-[80%] whitespace-pre-wrap text-left ${
-                        fromAdmin ? 'bg-purple-500 text-white' : 'bg-white text-purple-800 shadow'
-                      }`}
-                    >
-                      <span className="block text-xs font-semibold opacity-80">{fromAdmin ? 'You' : selectedName}</span>
-                      {message.message}
-                    </span>
-                  </motion.div>
-                )
-              })}
+                    {message.message}
+                  </span>
+                </motion.div>
+              ))}
               <div ref={messagesEndRef} />
             </div>
             <div className="p-4 bg-white shadow-inner">
@@ -136,7 +135,6 @@ export default function StartupMessages() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleSendMessage}
-                  title="Send"
                   className="bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                 >
                   <Send className="h-5 w-5" />
@@ -162,15 +160,13 @@ export default function StartupMessages() {
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleBroadcastMessage()}
-                  placeholder="Broadcast a message to all startups..."
+                  placeholder="Broadcast message..."
                   className="flex-1 p-3 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                 />
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleBroadcastMessage}
-                  title="Send to all startups"
                   className="bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                 >
                   <Send className="h-5 w-5" />
@@ -178,15 +174,22 @@ export default function StartupMessages() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {startups.length === 0 && <p className="p-4 text-gray-500">No startups yet.</p>}
               <ul>
                 {startups.map((startup) => (
-                  <li key={startup._id} className="border-b last:border-b-0">
+                  <motion.li
+                    key={startup._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="border-b last:border-b-0"
+                  >
                     <button
                       className="w-full p-4 text-left hover:bg-purple-100 flex justify-between items-center focus:outline-none focus:bg-purple-100 transition-colors duration-200"
                       onClick={() => openChat(startup._id)}
                     >
-                      <h2 className="font-semibold text-blue-800">{startup.kyc?.company_name}</h2>
+                      <div>
+                        <h2 className="font-semibold text-blue-800">{startup.kyc?.company_name}</h2>
+                      </div>
                       <div className="flex items-center">
                         {unreadMessages[startup._id] > 0 && (
                           <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full mr-2">
@@ -196,7 +199,7 @@ export default function StartupMessages() {
                         <ChevronRight className="h-5 w-5 text-purple-400" />
                       </div>
                     </button>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </div>

@@ -1,82 +1,87 @@
-// /admin/report : downloads a PDF with one page per startup (company details + progress reports)
+// Admin PDF report page: one button that downloads a PDF with one page per startup
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import { jsPDF } from 'jspdf';
 import api from '../../api';
 
-function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : 'N/A';
-}
+// jsPDF crashes on undefined text, so missing values become ''
+const text = (value) => (value === undefined || value === null ? '' : String(value));
+const date = (value) => (value ? new Date(value).toLocaleDateString() : '');
 
-function createPdf(startups) {
-  const doc = new jsPDF(); // A4 page, sizes in millimetres (210 x 297)
+function downloadPdf(startups) {
+  const doc = new jsPDF(); // A4 page, portrait, sizes in millimetres (210 x 297)
 
   startups.forEach((startup, index) => {
-    if (index > 0) doc.addPage(); // every startup gets its own page
     const kyc = startup.kyc || {};
     const details = kyc.company_details || {};
     const contact = kyc.contact_person || {};
+    const progress = startup.progress || [];
 
-    // Light purple page background
+    // Light purple background on the whole page
     doc.setFillColor(240, 240, 255);
     doc.rect(0, 0, 210, 297, 'F');
 
-    // Heading
+    // Company name as the heading (every startup starts at the top of its own page)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.setTextColor(75, 0, 130);
-    doc.text(`${kyc.company_name || 'Startup'} Details`, 10, 15);
+    doc.setTextColor(75, 0, 130); // dark purple
+    doc.text(`${text(kyc.company_name)} Details`, 10, 10);
 
-    // Details as "label: value" rows
-    const rows = [
-      ['Industry', details.industry],
-      ['Website', details.website],
-      ['Incorporation Date', formatDate(details.incorporation_date)],
-      ['Registered On', formatDate(kyc.created_at)],
-      ['Contact Person', contact.name],
-      ['Contact Email', contact.email],
-      ['Contact Phone', contact.phone],
-      ['Address', kyc.address],
-    ];
+    // Two columns of details
+    const leftColumnX = 10;
+    const rightColumnX = 110;
+
+    // Slightly darker purple blocks behind the details
+    doc.setFillColor(220, 220, 250);
+    doc.rect(10, 15, 90, 50, 'F');
+    doc.rect(110, 15, 90, 50, 'F');
+
+    // Labels
     doc.setFontSize(12);
-    let y = 30;
-    rows.forEach(([label, value]) => {
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(128, 0, 128);
-      doc.text(`${label}:`, 10, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      doc.text(String(value || 'N/A'), 60, y);
-      y += 8;
-    });
-
-    // Monthly progress reports
-    y += 6;
+    doc.setTextColor(128, 0, 128); // purple
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(75, 0, 130);
-    doc.text('Monthly Progress', 10, y);
+    doc.text('Industry:', leftColumnX, 20);
+    doc.text('Website:', leftColumnX, 30);
+    doc.text('Contact Email:', leftColumnX, 40);
+    doc.text('Created At:', leftColumnX, 50);
+
+    doc.text('Incorporation Date:', rightColumnX, 20);
+    doc.text('Contact Person:', rightColumnX, 30);
+    doc.text('Contact Phone:', rightColumnX, 40);
+    doc.text('Progress', rightColumnX, 50);
+
+    // Values in normal black text
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
-    y += 8;
 
-    if (startup.progress.length === 0) {
-      doc.text('No reports submitted yet.', 10, y);
-    }
-    startup.progress.forEach((item) => {
-      if (y > 270) return; // stop before running off the page
-      doc.text(`${item.month || 'N/A'} - Milestones: ${item.milestones || ''}`, 10, y, { maxWidth: 190 });
-      doc.text(`Revenue: Rs. ${item.financials?.revenue ?? 0}    Expenses: Rs. ${item.financials?.expenses ?? 0}`, 14, y + 6);
-      y += 16;
+    doc.text(text(details.industry), leftColumnX + 40, 20);
+    doc.text(text(details.website), leftColumnX + 40, 30);
+    doc.text(text(contact.email), leftColumnX + 40, 40);
+    doc.text(kyc.created_at ? date(kyc.created_at) : 'N/A', leftColumnX + 40, 50);
+
+    doc.text(date(details.incorporation_date), rightColumnX + 50, 20);
+    doc.text(text(contact.name), rightColumnX + 50, 30);
+    doc.text(text(contact.phone), rightColumnX + 50, 40);
+
+    // Progress reports: 3 lines each, so each report moves down 15mm (no overlapping)
+    progress.forEach((item, idx) => {
+      const y = 60 + idx * 15;
+      doc.text(`- Milestones: ${text(item.milestones)}`, leftColumnX, y);
+      doc.text(`  Revenue: ${text(item.financials?.revenue)}`, leftColumnX, y + 5);
+      doc.text(`  Expenses: ${text(item.financials?.expenses)}`, leftColumnX, y + 10);
     });
+
+    if (index < startups.length - 1) {
+      doc.addPage();
+    }
   });
 
-  doc.save('startx_startups_report.pdf');
+  doc.save('styled_startups_report.pdf');
 }
 
-export default function Report() {
+export default function Temp() {
   const [startups, setStartups] = useState([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,26 +92,14 @@ export default function Report() {
     api
       .get('/admin/startups')
       .then((response) => setStartups(response.data))
-      .catch((error) => console.error('Error fetching startups:', error))
-      .finally(() => setLoading(false));
+      .catch((error) => console.error('Error fetching startups:', error));
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-purple-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center space-y-4">
-        <h1 className="text-2xl font-bold text-purple-800">Startups PDF Report</h1>
-        <p className="text-gray-600">
-          {loading ? 'Loading startups...' : `${startups.length} startup(s) will be included, one per page.`}
-        </p>
-        <button
-          onClick={() => createPdf(startups)}
-          disabled={loading || startups.length === 0}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded disabled:opacity-50"
-        >
-          Download PDF
-        </button>
-        <Link to="/admin" className="block text-purple-700 hover:underline">← Back to Admin</Link>
-      </div>
+    <div>
+      <button onClick={() => downloadPdf(startups)}>
+        Download PDf
+      </button>
     </div>
   );
 }

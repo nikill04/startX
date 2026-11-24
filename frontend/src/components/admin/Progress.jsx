@@ -50,20 +50,18 @@ export default function StartupProgress() {
       <h1 className="text-4xl font-bold text-center mb-8 text-blue-800">Startup Progress Dashboard</h1>
 
       <div className="mb-4">
-        <Link to="/admin" className="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
-          ← Back to Admin
+        <Link to="/admin">
+          <button className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+            Back to Admin
+          </button>
         </Link>
       </div>
 
-      {data.length === 0 && (
-        <p className="text-center text-blue-800">This startup has not submitted any monthly reports yet.</p>
-      )}
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon="💰" />
-        <Card title="Total Expenses" value={`₹${totalExpenses.toLocaleString()}`} icon="💸" />
-        <Card title={profit >= 0 ? 'Profit' : 'Loss'} value={`₹${Math.abs(profit).toLocaleString()}`} icon={profit >= 0 ? '📈' : '📉'} />
+        <Card title="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} icon="💰" />
+        <Card title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon="💸" />
+        <Card title="Profit/Loss" value={`$${Math.abs(profit).toLocaleString()}`} icon={profit >= 0 ? '📈' : '📉'} />
       </div>
 
       {/* Bar Chart */}
@@ -110,7 +108,12 @@ export default function StartupProgress() {
         <div className="space-y-4">
           {data.map((item, index) => (
             <div key={item._id} className="flex items-center space-x-4">
-              <div className="w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center text-white font-bold bg-blue-500">
+              {/* The first milestone is highlighted */}
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
+                  index === 0 ? 'bg-blue-600' : 'bg-blue-400'
+                }`}
+              >
                 {index + 1}
               </div>
               <div className="flex-1">

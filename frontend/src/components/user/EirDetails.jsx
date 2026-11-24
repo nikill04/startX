@@ -5,21 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api, { getErrorMessage } from '../../api'
 import { getStatusColor } from '../../status'
 
-// "a, b , c" -> ["a", "b", "c"]
-const toList = (text) => text.split(',').map((item) => item.trim()).filter(Boolean)
-
 export default function EIRDetails({ eirList, reload }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const startup = Cookie.get('startup')
 
   const [entrepreneurName, setEntrepreneurName] = useState('')
   const [entrepreneurEmail, setEntrepreneurEmail] = useState('')
   const [entrepreneurBackground, setEntrepreneurBackground] = useState('')
   const [entrepreneurIndustryExperience, setEntrepreneurIndustryExperience] = useState('')
-  const [previousVentures, setPreviousVentures] = useState('')     // comma separated
+  const [previousVentures, setPreviousVentures] = useState('')
   const [startupName, setStartupName] = useState('')
-  const [mentorshipStartups, setMentorshipStartups] = useState('') // comma separated
+  const [mentorshipStartups, setMentorshipStartups] = useState('')
   const [personalGoals, setPersonalGoals] = useState('')
 
   const openModal = () => setIsModalOpen(true)
@@ -33,25 +29,22 @@ export default function EIRDetails({ eirList, reload }) {
         background: entrepreneurBackground,
         email: entrepreneurEmail,
         industry_experience: entrepreneurIndustryExperience,
-        previous_ventures: toList(previousVentures),
+        previous_ventures: previousVentures,
       },
       startup_name: startupName,
       objectives: {
-        mentorship_startups: toList(mentorshipStartups),
+        mentorship_startups: mentorshipStartups,
         personal_goals: personalGoals,
       },
     }
 
-    setIsSubmitting(true)
     try {
       await api.post(`/submit/eir/${startup}`, formData)
-      alert('EIR application submitted!')
       closeModal()
       reload() // show the new application in the list
     } catch (error) {
       alert(getErrorMessage(error))
     }
-    setIsSubmitting(false)
   }
 
   return (
@@ -133,7 +126,7 @@ export default function EIRDetails({ eirList, reload }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -158,7 +151,7 @@ export default function EIRDetails({ eirList, reload }) {
                 <div>
                   <label className="block text-gray-700 mb-1">Email</label>
                   <input
-                    type="email"
+                    type="text"
                     value={entrepreneurEmail}
                     onChange={(e) => setEntrepreneurEmail(e.target.value)}
                     className="border border-gray-300 p-2 w-full rounded"
@@ -187,7 +180,7 @@ export default function EIRDetails({ eirList, reload }) {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 mb-1">Previous Ventures (comma separated)</label>
+                  <label className="block text-gray-700 mb-1">Previous Ventures</label>
                     <input
                       type="text"
                       value={previousVentures}
@@ -210,7 +203,7 @@ export default function EIRDetails({ eirList, reload }) {
                 <h3 className="font-bold text-lg text-[#00ADB5] mt-6">Objectives</h3>
 
                 <div>
-                  <label className="block text-gray-700 mb-1">Mentorship Startups (comma separated)</label>
+                  <label className="block text-gray-700 mb-1">Mentorship Startups</label>
                     <input
                       type="text"
                       value={mentorshipStartups}
@@ -242,10 +235,9 @@ export default function EIRDetails({ eirList, reload }) {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       type="submit"
-                      disabled={isSubmitting}
-                      className="bg-[#00ADB5] hover:bg-[#00A1A1] text-white font-bold py-2 px-4 rounded transition duration-300 disabled:opacity-60"
+                      className="bg-[#00ADB5] hover:bg-[#00A1A1] text-white font-bold py-2 px-4 rounded transition duration-300"
                     >
-                      {isSubmitting ? 'Submitting...' : 'Submit'}
+                      Submit
                     </motion.button>
                   </div>
                 </form>

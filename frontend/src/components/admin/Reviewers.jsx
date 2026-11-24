@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Plus, X } from 'lucide-react';
 import Loader from '../Loader';
-import api, { getErrorMessage } from '../../api';
+import api from '../../api';
 
 const emptyReviewer = { name: '', email: '', password: '', organization: '', about: '' };
-const inputClass = 'w-full p-2 bg-white rounded-md border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500';
+const inputClass = 'w-full p-2 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500';
 
 export default function Reviewers() {
   const [reviewers, setReviewers] = useState([]);
@@ -33,14 +33,13 @@ export default function Reviewers() {
       setReviewers([...reviewers, response.data]);
       setNewReviewer(emptyReviewer);
       setIsFormVisible(false);
-      alert('Reviewer added. They can now log in at /reviewer/login');
     } catch (error) {
-      alert(getErrorMessage(error));
+      console.error('Error adding reviewer:', error);
     }
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 text-white">
       <h2 className="text-3xl font-bold mb-6 text-center text-purple-500">Reviewers Management</h2>
 
       <motion.button
@@ -72,7 +71,7 @@ export default function Reviewers() {
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium mb-1">Password</label>
-              <input id="password" name="password" type="password" value={newReviewer.password} onChange={handleChange} required minLength={4} className={inputClass} />
+              <input id="password" name="password" type="password" value={newReviewer.password} onChange={handleChange} required className={inputClass} />
             </div>
             <div>
               <label htmlFor="organization" className="block text-sm font-medium mb-1">Organization</label>
@@ -85,8 +84,8 @@ export default function Reviewers() {
             <motion.button
               type="submit"
               className="w-full p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Add Reviewer
             </motion.button>
@@ -95,10 +94,11 @@ export default function Reviewers() {
       )}
 
       {loading ? (
-        <Loader />
+        <div className="flex justify-center items-center mt-6">
+          <Loader />
+        </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {reviewers.length === 0 && <p className="text-gray-600">No reviewers yet.</p>}
           {reviewers.map((reviewer) => (
             <motion.div
               key={reviewer._id}

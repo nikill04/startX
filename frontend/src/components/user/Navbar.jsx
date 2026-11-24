@@ -1,70 +1,66 @@
 // Top navigation bar of the startup dashboard (/home)
-import React, { useState } from 'react';
-import Cookies from 'js-cookie';
-import { useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import React from 'react'
+import Cookies from 'js-cookie'
+import { useNavigate } from 'react-router-dom' // Import useNavigate from react-router-dom
+import { motion } from 'framer-motion'
 
-const navItems = [
-  { id: 'details', name: 'Startup Details' },
-  { id: 'eir', name: 'EIR Application' },
-  { id: 'grant', name: 'Grants Application' },
-  { id: 'messages', name: 'Messages' },
-  { id: 'monthly', name: 'Monthly Progress' },
-];
+export default function Navbar({ setActiveComponent }) {
+  const navigate = useNavigate() // Use useNavigate instead of useRouter
 
-export default function Navbar({ activeComponent, setActiveComponent }) {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // only used on small screens
+  const Logout = () => {
+    Cookies.remove('user')
+    Cookies.remove('startup')
+    navigate('/') // Use navigate for redirection
+  }
 
-  const logout = () => {
-    Cookies.remove('user');
-    Cookies.remove('startup');
-    navigate('/');
-  };
-
-  const openSection = (id) => {
-    setActiveComponent(id);
-    setIsMenuOpen(false);
-  };
-
-  const buttonClass = (id) =>
-    `px-3 py-2 rounded-md text-sm font-medium text-left transition-colors duration-200 ${
-      activeComponent === id ? 'bg-white/20' : 'hover:bg-white/10'
-    }`;
-
-  const links = (
-    <>
-      {navItems.map((item) => (
-        <button key={item.id} className={buttonClass(item.id)} onClick={() => openSection(item.id)}>
-          {item.name}
-        </button>
-      ))}
-      <button
-        className="px-3 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 transition-colors duration-200"
-        onClick={logout}
-      >
-        Log Out
-      </button>
-    </>
-  );
+  const navItems = [
+    { name: 'Startup Details', action: () => setActiveComponent('details') },
+    { name: 'EIR Application', action: () => setActiveComponent('eir') },
+    { name: 'Grants Application', action: () => setActiveComponent('grant') },
+    { name: 'Messages', action: () => setActiveComponent('messages') },
+    { name: 'Monthly Progress', action: () => setActiveComponent('monthly') },
+  ]
 
   return (
-    <header className="bg-gray-900 text-white">
-      <nav className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <button className="text-3xl font-bold text-red-600" onClick={() => openSection('details')}>
-          StartX
-        </button>
-
-        {/* Big screens: links in one row */}
-        <div className="hidden lg:flex items-center gap-2">{links}</div>
-
-        {/* Small screens: a menu button */}
-        <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
-          {isMenuOpen ? <X /> : <Menu />}
-        </button>
-      </nav>
-
-      {isMenuOpen && <div className="lg:hidden flex flex-col gap-1 px-4 pb-4">{links}</div>}
-    </header>
-  );
+    <motion.header
+      initial={{ opacity: 0, y: -50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-gray-900 text-white"
+    >
+      <div className="container mx-auto px-4 py-4">
+        <nav className="flex items-center justify-between">
+          <motion.h1
+            initial={{ scale: 0.5 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="text-3xl font-bold text-red-600"
+          >
+            StartX
+          </motion.h1>
+          <div className="flex items-center space-x-4 ml-auto"> {/* Added ml-auto for right alignment */}
+            {navItems.map((item) => (
+              <motion.button
+                key={item.name}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-white/10 transition-colors duration-200"
+                onClick={item.action}
+              >
+                {item.name}
+              </motion.button>
+            ))}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-3 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 transition-colors duration-200"
+              onClick={Logout}
+            >
+              Log Out
+            </motion.button>
+          </div>
+        </nav>
+      </div>
+    </motion.header>
+  )
 }

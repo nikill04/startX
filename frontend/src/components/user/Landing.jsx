@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom"; // Use React Router Link for navigation
 import { motion } from "framer-motion";
-import logo from "../../assets/StartX.png";
 
 export default function AnimatedLandingPage() {
   return (
@@ -70,7 +69,17 @@ export default function AnimatedLandingPage() {
                 className="absolute inset-0 bg-gradient-to-tr from-pink-500 to-orange-400 rounded-3xl"
               ></motion.div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <img src={logo} alt="StartX logo" className="w-64 h-64 object-cover rounded-full shadow-2xl" />
+                {/* Plays public/startx-logo-animation.mp4 when that file is added; until then the card shows only the animation */}
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-3/4 h-3/4 object-cover rounded-2xl"
+                >
+                  <source src="/startx-logo-animation.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </div>
           </motion.div>
@@ -107,19 +116,13 @@ export default function AnimatedLandingPage() {
               </ul>
             </div>
             <div className="w-full md:w-1/3">
-              <h3 className="text-lg font-semibold mb-4">Other Portals</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link to="/reviewer/login" className="hover:text-gray-300">
-                    Reviewer Login
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/login" className="hover:text-gray-300">
-                    Admin Login
-                  </Link>
-                </li>
-              </ul>
+              <h3 className="text-lg font-semibold mb-4">Connect With Us</h3>
+              <div className="flex space-x-4">
+                {/* Social media icons go here (no links yet; empty href="#" links fail the Vercel CI build) */}
+                <span className="sr-only">Facebook</span>
+                <span className="sr-only">Twitter</span>
+                <span className="sr-only">GitHub</span>
+              </div>
             </div>
           </div>
         </div>
