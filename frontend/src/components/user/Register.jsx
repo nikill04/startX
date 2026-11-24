@@ -79,7 +79,7 @@ export default function Register() {
       Cookies.set('startup', data.startup)
       navigate('/home')
     } catch (error) {
-      // Tell the user why it failed (e.g. "Profile picture must be smaller than 1 MB"), otherwise nothing happens
+      // Tell the user why it failed (e.g. "Profile picture must be smaller than 10 MB"), otherwise nothing happens
       alert(getErrorMessage(error))
     }
     setIsLoading(false)

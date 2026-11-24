@@ -53,16 +53,19 @@ export default function Messages() {
   };
 
   return (
-    <div className="flex flex-col h-[90vh] w-full max-w-4xl mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-lg overflow-hidden">
+    <div className="flex flex-col h-[80vh] w-full max-w-4xl mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-lg overflow-hidden">
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div
-          className="flex-1 overflow-y-auto p-6 space-y-4"
-          style={{ maxHeight: "75vh" }}
-        >
+        // flex-1 lets the message list fill the box, so the typing bar sits at the bottom
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.length === 0 && (
+            <p className="h-full flex items-center justify-center text-gray-500">
+              No messages yet. Say hello to the StartX team!
+            </p>
+          )}
           <AnimatePresence>
             {messages.map((msg, index) => (
               <motion.div

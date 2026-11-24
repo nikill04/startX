@@ -97,6 +97,12 @@ export default function GrantDetails({ grant, reload }) {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* A new startup has no grants yet: say so instead of showing an empty page */}
+        {grant.length === 0 && (
+          <p className="bg-white rounded-lg shadow-md border border-gray-200 p-6 text-center text-gray-600">
+            No grant applications yet. Click "Apply for Grant" to submit your first one.
+          </p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {grant.map((g, index) => (
             <motion.div

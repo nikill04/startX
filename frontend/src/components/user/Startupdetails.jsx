@@ -42,6 +42,9 @@ export default function StartupDetails({ kyc, progress }) {
               <p><strong>Contact Person:</strong> {kyc.contact_person?.name}</p>
               <p><strong>Email:</strong> {kyc.contact_person?.email}</p>
               <p><strong>Phone:</strong> {kyc.contact_person?.phone}</p>
+              {kyc.company_details?.incorporation_date && (
+                <p><strong>Incorporated:</strong> {new Date(kyc.company_details.incorporation_date).toLocaleDateString()}</p>
+              )}
               <p>
                 <strong>Website:</strong>{" "}
                 <a
@@ -62,6 +65,12 @@ export default function StartupDetails({ kyc, progress }) {
           <div className="p-4 md:p-5">
             <h3 className="text-xl font-semibold mb-3 text-gray-800">Latest Progress</h3>
             <div className="space-y-3 max-h-72 overflow-y-auto">
+              {/* A new startup has no reports yet: say so instead of showing an empty box */}
+              {latestProgress.length === 0 && (
+                <div className="p-4 rounded-lg bg-teal-50 text-gray-600 text-sm">
+                  No progress reports yet. Add your first one from <strong>Monthly Progress</strong>.
+                </div>
+              )}
               {latestProgress.map((monthData, index) => (
                 <motion.div
                   key={monthData._id || index}

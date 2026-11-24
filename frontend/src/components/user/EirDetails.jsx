@@ -52,7 +52,7 @@ export default function EIRDetails({ eirList, reload }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-gradient-to-b from-gray-200 to-gray-300 min-h-screen p-6"
+      className="bg-gradient-to-b from-gray-200 to-gray-300 p-6"
     >
       <div className="max-w-7xl mx-auto">
         <motion.div
@@ -115,7 +115,7 @@ export default function EIRDetails({ eirList, reload }) {
               ))}
             </motion.div>
           ) : (
-            <p className="text-gray-700">No EIR applications available.</p>
+            <p className="text-gray-700">No EIR applications yet. Click "Apply for EIR" to submit your first one.</p>
           )}
         </motion.div>
 

@@ -109,6 +109,9 @@ const MonthlyProgressReport = ({ progress, reload }) => {
         )}
       </AnimatePresence>
       <h3 className="text-2xl font-semibold mb-4 text-teal-800">Submitted Monthly Reports:</h3>
+      {progress.length === 0 && (
+        <p className="text-gray-600">No reports submitted yet. Click "New Monthly Report" to add your first one.</p>
+      )}
       <motion.ul className="space-y-4">
         <AnimatePresence>
           {progress.map((data, index) => (

@@ -9,8 +9,9 @@ const { sendMail } = require('../../utils/mailer');
 
 const router = express.Router();
 
-// Keep the uploaded picture in memory (max 1 MB) so we can save it in the database
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 } });
+// Keep the uploaded picture in memory (max 10 MB) so we can save it in the database.
+// (A MongoDB document can hold at most 16 MB, and a 10 MB picture becomes about 13.4 MB of text.)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // POST /auth/register  -> create a login account
 router.post('/register', async (req, res) => {
@@ -36,7 +37,7 @@ router.post('/register', async (req, res) => {
 router.post('/kyc', (req, res, next) => {
   // Run the upload first so we can show a friendly message if the picture is too big
   upload.single('profile_pic')(req, res, (error) => {
-    if (error) return res.status(400).json({ message: 'Profile picture must be smaller than 1 MB' });
+    if (error) return res.status(400).json({ message: 'Profile picture must be smaller than 10 MB' });
     next();
   });
 }, async (req, res) => {
